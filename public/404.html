@@ -2,14 +2,19 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0; url=/LPS-SemarangKendal/#/" />
+    <meta http-equiv="refresh" content="0; url=/LPS-SemarangKendal/" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Redirecting...</title>
   </head>
   <body>
-    <p>Redirecting to aplikasi...</p>
     <script>
-      window.location.replace('/LPS-SemarangKendal/#/');
+      (function () {
+        var base = '/LPS-SemarangKendal/';
+        var path = window.location.pathname.replace(base, '').replace(/^\/+/, '');
+        var redirect = base + '#/' + path;
+        window.location.replace(redirect);
+      })();
     </script>
+    <p>Redirecting...</p>
   </body>
 </html>
