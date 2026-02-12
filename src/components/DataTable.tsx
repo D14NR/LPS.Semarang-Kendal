@@ -111,7 +111,7 @@ export default function DataTable({ columns, data, onEdit, onDelete, onView, loa
         <div className="flex items-center justify-center py-2">
           <p className="text-gray-400 text-sm flex items-center gap-2">
             <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-            Memuat data dari spreadsheet...
+            Memuat data dari server database...
           </p>
         </div>
       </div>

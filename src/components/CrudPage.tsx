@@ -239,7 +239,7 @@ function MultiSelectCheckbox({ value, onChange, options, loading, placeholder }:
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in">
+        <div className="absolute z-[120] mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in">
           {/* Search */}
           <div className="p-2 border-b border-gray-100">
             <div className="relative">

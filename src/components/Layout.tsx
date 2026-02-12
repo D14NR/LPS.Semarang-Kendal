@@ -141,8 +141,8 @@ export default function Layout({ children }: LayoutProps) {
           </div>
           {!sidebarCollapsed && (
             <div>
-              <h1 className="text-lg font-bold tracking-tight">Akademik</h1>
-              <p className="text-xs text-slate-400">Sistem Manajemen</p>
+              <h1 className="text-lg font-bold tracking-tight">LPS Smrg-Kndl</h1>
+              <p className="text-xs text-slate-400">Laporan Pekembangan</p>
             </div>
           )}
           <div className="flex items-center gap-2 ml-auto">
@@ -313,7 +313,7 @@ export default function Layout({ children }: LayoutProps) {
             )}
           </div>
           {!sidebarCollapsed && (
-            <p className="text-xs text-slate-600 mt-1">© 2024 Sistem Akademik</p>
+            <p className="text-xs text-slate-600 mt-1">© 2024 Laporan Pekembangan Siswa (LPS) Smrg-Kndl</p>
           )}
         </div>
       </aside>

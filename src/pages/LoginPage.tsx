@@ -56,14 +56,14 @@ export default function LoginPage() {
               <GraduationCap size={36} />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Sistem Akademik</h1>
-              <p className="text-blue-300 text-sm">Manajemen Data Siswa & Pengajar</p>
+              <h1 className="text-3xl font-bold tracking-tight">LPS Smrg-Kndl</h1>
+              <p className="text-blue-300 text-sm">Laporan Pekembangan Siswa</p>
             </div>
           </div>
 
           <div className="space-y-6 max-w-md">
             <p className="text-blue-100 text-lg leading-relaxed">
-              Platform manajemen akademik terintegrasi untuk mengelola data siswa, presensi, nilai, dan perkembangan belajar.
+              Platform manajemen akademik terintegrasi untuk mengelola data siswa, presensi, nilai, dan pekembangan belajar.
             </p>
 
             <div className="space-y-4">
@@ -86,7 +86,7 @@ export default function LoginPage() {
           {/* Footer */}
           <div className="mt-12 pt-8 border-t border-white/10">
             <p className="text-blue-400 text-xs">
-              © 2024 Sistem Manajemen Akademik — Terhubung dengan Google Spreadsheet
+              © 2024 Laporan Pekembangan Siswa — Terhubung ke server database
             </p>
           </div>
         </div>
@@ -101,8 +101,8 @@ export default function LoginPage() {
               <GraduationCap size={26} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Sistem Akademik</h1>
-              <p className="text-xs text-gray-500">Manajemen Data Siswa</p>
+              <h1 className="text-xl font-bold text-gray-800">LPS Smrg-Kndl</h1>
+              <p className="text-xs text-gray-500">Laporan Pekembangan Siswa</p>
             </div>
           </div>
 

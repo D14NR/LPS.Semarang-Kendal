@@ -7,9 +7,10 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  contentClassName?: string;
 }
 
-export default function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, size = 'md', contentClassName = 'overflow-y-auto' }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -31,7 +32,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-10 pb-10">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative bg-white rounded-2xl shadow-2xl w-full ${sizeClasses[size]} mx-4 max-h-[90vh] flex flex-col animate-in`}>
+      <div className={`relative bg-white rounded-2xl shadow-2xl w-full ${sizeClasses[size]} mx-4 max-h-[90vh] flex flex-col animate-in overflow-visible`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
           <button
@@ -41,7 +42,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
             <X size={18} className="text-gray-500" />
           </button>
         </div>
-        <div className="overflow-y-auto flex-1 px-6 py-4">
+        <div className={`${contentClassName} flex-1 px-6 py-4`}>
           {children}
         </div>
       </div>

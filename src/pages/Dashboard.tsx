@@ -213,8 +213,8 @@ export default function Dashboard() {
             <CheckCircle size={20} className="text-green-600" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-green-800">Google Apps Script Terhubung — Mode CRUD Aktif</p>
-            <p className="text-xs text-green-600 mt-0.5">Semua operasi Create, Read, Update, Delete terhubung langsung ke Google Spreadsheet.</p>
+            <p className="text-sm font-semibold text-green-800">Server Database Terhubung — Mode CRUD Aktif</p>
+            <p className="text-xs text-green-600 mt-0.5">Semua operasi Create, Read, Update, Delete terhubung langsung ke server database.</p>
           </div>
           <Activity size={20} className="text-green-400 animate-pulse flex-shrink-0" />
         </div>
@@ -291,7 +291,7 @@ export default function Dashboard() {
         {/* Spreadsheet Links / Account Info */}
         {user?.isAdmin ? (
           <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-lg">
-            <h3 className="text-lg font-semibold mb-4">🔗 Spreadsheet Terhubung</h3>
+            <h3 className="text-lg font-semibold mb-4">🔗 Server Database Terhubung</h3>
             <ul className="space-y-2.5 text-sm text-blue-100">
               {sheetConfigs.map((cfg) => (
                 <li key={cfg.key} className="flex items-center justify-between">

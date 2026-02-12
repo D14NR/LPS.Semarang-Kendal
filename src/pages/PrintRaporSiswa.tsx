@@ -258,7 +258,11 @@ export default function PrintRaporSiswa() {
       if (status in counts) counts[status as keyof typeof counts] += 1;
     });
     const total = filteredData.presensi.length;
-    return { ...counts, total };
+    const hadirRate = total ? (counts.Hadir / total) * 100 : 0;
+    const izinRate = total ? (counts.Izin / total) * 100 : 0;
+    const sakitRate = total ? (counts.Sakit / total) * 100 : 0;
+    const alphaRate = total ? (counts.Alpha / total) * 100 : 0;
+    return { ...counts, total, hadirRate, izinRate, sakitRate, alphaRate };
   }, [filteredData]);
 
   const sortedPresensi = useMemo(() => {
@@ -315,11 +319,27 @@ export default function PrintRaporSiswa() {
       .map(([label, items]) => {
         const totalValues = items.map((row) => parseFloat(row['Total'] || '')).filter((v) => !Number.isNaN(v));
         const rerataValues = items.map((row) => parseFloat(row['Rerata'] || '')).filter((v) => !Number.isNaN(v));
+        const sortedByDate = [...items].sort((a, b) => {
+          const da = parseDateValue(a['Tanggal'] || '')?.getTime() || 0;
+          const db = parseDateValue(b['Tanggal'] || '')?.getTime() || 0;
+          return db - da;
+        });
+        const latest = sortedByDate[0];
+        const previous = sortedByDate[1];
+        const latestRerata = parseFloat(latest?.['Rerata'] || '');
+        const previousRerata = parseFloat(previous?.['Rerata'] || '');
+        const delta =
+          !Number.isNaN(latestRerata) && !Number.isNaN(previousRerata)
+            ? latestRerata - previousRerata
+            : null;
         return {
           label,
           count: items.length,
           avgTotal: average(totalValues),
           avgRerata: average(rerataValues),
+          latest,
+          previous,
+          delta,
         };
       })
       .filter((item) => item.count > 0);
@@ -343,9 +363,24 @@ export default function PrintRaporSiswa() {
     const durasiValues = filteredData.pelayanan
       .map((row) => parseFloat((row['Durasi'] || '').replace(/[^0-9.]/g, '')))
       .filter((val) => !Number.isNaN(val));
+
+    const perMapel = filteredData.pelayanan.reduce((acc, row) => {
+      const mapel = (row['Mata Pelajaran'] || 'Lainnya').trim() || 'Lainnya';
+      const durasi = parseFloat((row['Durasi'] || '').replace(/[^0-9.]/g, ''));
+      if (!acc[mapel]) {
+        acc[mapel] = { sesi: 0, durasiTotal: 0 };
+      }
+      acc[mapel].sesi += 1;
+      if (!Number.isNaN(durasi)) {
+        acc[mapel].durasiTotal += durasi;
+      }
+      return acc;
+    }, {} as Record<string, { sesi: number; durasiTotal: number }>);
+
     return {
       total: filteredData.pelayanan.length,
       avgDurasi: average(durasiValues),
+      perMapel,
     };
   }, [filteredData]);
 
@@ -851,34 +886,77 @@ export default function PrintRaporSiswa() {
           {/* Analisa */}
           <section className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-6 text-white print-page print-reset-shadow">
             <h2 className="text-lg font-semibold mb-3">Analisa & Keterangan</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-200">
-              <div className="bg-white/10 rounded-xl p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm text-slate-200">
+              <div className="bg-white/10 rounded-xl p-4 space-y-2">
                 <p className="text-xs uppercase text-slate-300">Ringkasan Presensi</p>
-                <p className="mt-2">
+                <p>
                   Total presensi <strong>{presensiSummary?.total || 0}</strong> dengan tingkat kehadiran{' '}
-                  <strong>{presensiSummary?.total ? Math.round((presensiSummary.Hadir / presensiSummary.total) * 100) : 0}%</strong>.
+                  <strong>{presensiSummary?.total ? Math.round((presensiSummary.hadirRate || 0)) : 0}%</strong>.
+                </p>
+                <p>
+                  Kriteria: Hadir stabil jika ≥ 85%. Izin masih wajar jika ≤ 10%, Sakit wajar jika ≤ 10%, dan Alpha
+                  perlu perhatian bila &gt; 5%.
+                </p>
+                <p>
+                  Detail: Hadir {presensiSummary?.Hadir || 0} ({Math.round(presensiSummary?.hadirRate || 0)}%), Izin{' '}
+                  {presensiSummary?.Izin || 0} ({Math.round(presensiSummary?.izinRate || 0)}%), Sakit{' '}
+                  {presensiSummary?.Sakit || 0} ({Math.round(presensiSummary?.sakitRate || 0)}%), Alpha{' '}
+                  {presensiSummary?.Alpha || 0} ({Math.round(presensiSummary?.alphaRate || 0)}%).
                 </p>
               </div>
-              <div className="bg-white/10 rounded-xl p-4">
-                <p className="text-xs uppercase text-slate-300">Perkembangan</p>
-                <p className="mt-2">
-                  Catatan perkembangan sebanyak <strong>{perkembanganSummary?.total || 0}</strong> dengan fokus penguasaan utama{' '}
-                  <strong>{Object.keys(perkembanganSummary?.penguasaanCount || {})[0] || '-'}</strong>.
+              <div className="bg-white/10 rounded-xl p-4 space-y-2">
+                <p className="text-xs uppercase text-slate-300">Perkembangan (Per Mata Pelajaran)</p>
+                <p>
+                  Mapel dominan: <strong>{sortedPerkembangan[0]?.['Mata Pelajaran'] || '-'}</strong>.
+                  Penguasaan materi rata-rata: <strong>{Object.keys(perkembanganSummary?.penguasaanCount || {})[0] || '-'}</strong>.
+                </p>
+                <p>
+                  Penjelasan (fokus/menyimak): <strong>{Object.keys(perkembanganSummary?.penjelasanCount || {})[0] || '-'}</strong>.
+                </p>
+                <p>
+                  Kondisi keaktifan: <strong>{Object.keys(perkembanganSummary?.kondisiCount || {})[0] || '-'}</strong>.
+                  Perhatikan siswa aktif bertanya dan konsisten mengikuti instruksi.
                 </p>
               </div>
-              <div className="bg-white/10 rounded-xl p-4">
-                <p className="text-xs uppercase text-slate-300">Nilai</p>
-                <p className="mt-2">
-                  Rata-rata total nilai keseluruhan{' '}
-                  <strong>{formatNumber(average((nilaiSummary || []).map((item) => item.avgTotal)).toFixed(2))}</strong>.
-                </p>
+              <div className="bg-white/10 rounded-xl p-4 space-y-2">
+                <p className="text-xs uppercase text-slate-300">Analisa Nilai (Rerata per Jenis Tes)</p>
+                {(nilaiSummary || []).length > 0 ? (
+                  (nilaiSummary || []).map((item) => {
+                    const deltaText =
+                      item.delta === null
+                        ? 'Data sebelumnya belum ada'
+                        : item.delta > 0
+                        ? `Meningkat (+${item.delta.toFixed(2)})`
+                        : item.delta < 0
+                        ? `Menurun (${item.delta.toFixed(2)})`
+                        : 'Stabil (0)';
+                    return (
+                      <p key={item.label}>
+                        {item.label}: rerata <strong>{formatNumber(item.avgRerata.toFixed(2))}</strong> — {deltaText}.
+                      </p>
+                    );
+                  })
+                ) : (
+                  <p>Belum ada data nilai pada periode ini.</p>
+                )}
               </div>
-              <div className="bg-white/10 rounded-xl p-4">
-                <p className="text-xs uppercase text-slate-300">Jam Tambahan</p>
-                <p className="mt-2">
-                  Total sesi jam tambahan <strong>{pelayananSummary?.total || 0}</strong> dengan rata-rata durasi{' '}
+              <div className="bg-white/10 rounded-xl p-4 space-y-2">
+                <p className="text-xs uppercase text-slate-300">Jam Tambahan (Sesi & Durasi per Mapel)</p>
+                <p>
+                  Total sesi <strong>{pelayananSummary?.total || 0}</strong> dengan rata-rata durasi{' '}
                   <strong>{formatNumber(pelayananSummary?.avgDurasi.toFixed(1) || '0')} menit</strong>.
                 </p>
+                {pelayananSummary?.perMapel && Object.keys(pelayananSummary.perMapel).length > 0 ? (
+                  <div className="space-y-1">
+                    {Object.entries(pelayananSummary.perMapel).map(([mapel, info]) => (
+                      <p key={mapel}>
+                        {mapel}: {info.sesi} sesi, total durasi {formatNumber(info.durasiTotal.toFixed(0))} menit.
+                      </p>
+                    ))}
+                  </div>
+                ) : (
+                  <p>Belum ada sesi jam tambahan pada periode ini.</p>
+                )}
               </div>
             </div>
           </section>

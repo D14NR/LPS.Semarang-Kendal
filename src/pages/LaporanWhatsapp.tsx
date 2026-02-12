@@ -240,6 +240,13 @@ export default function LaporanWhatsapp() {
 
   const lastPerkembangan = perkembanganFiltered[0];
   const totalCatatan = perkembanganFiltered.length;
+  const totalNilaiCount =
+    nilaiBundle.utbk.length +
+    nilaiBundle.tkaSma.length +
+    nilaiBundle.tkaSmp.length +
+    nilaiBundle.tkaSd.length +
+    nilaiBundle.tesStandar.length +
+    nilaiBundle.evaluasi.length;
 
   const whatsappNumber = useMemo(() => {
     if (!selectedStudentData) return '';
@@ -254,8 +261,8 @@ export default function LaporanWhatsapp() {
   const messageText = useMemo(() => {
     if (!selectedStudentData) return '';
     const periode = `${startDate ? formatDate(startDate) : '-'} s/d ${endDate ? formatDate(endDate) : '-'}`;
-    const header = `Laporan Perkembangan Belajar Siswa\nPeriode: ${periode}\n`;
-    const biodata = `Nama: ${selectedStudentData['Nama'] || '-'}\nNIS: ${selectedStudentData['Nis'] || '-'}\nJenjang: ${selectedStudentData['Jenjang Studi'] || '-'}\nCabang: ${selectedStudentData['Cabang'] || '-'}\n`;
+    const header = `📌 *LAPORAN PERKEMBANGAN BELAJAR SISWA*\nPeriode: ${periode}\n`;
+    const biodata = `\n👤 *Biodata*\n• Nama: ${selectedStudentData['Nama'] || '-'}\n• NIS: ${selectedStudentData['Nis'] || '-'}\n• Jenjang: ${selectedStudentData['Jenjang Studi'] || '-'}\n• Cabang: ${selectedStudentData['Cabang'] || '-'}\n`;
 
     const statusMap: Record<string, string> = {
       h: 'Hadir',
@@ -294,28 +301,39 @@ export default function LaporanWhatsapp() {
       ? uniqueRecentDates.join(', ')
       : 'Tidak ada data presensi 7 hari terakhir.';
 
-    const presensiSummary = `\nLaporan Presensi\nTotal Presensi: ${presensiFiltered.length}\nHadir: ${presensiCounts['Hadir'] || 0}\nIzin: ${presensiCounts['Izin'] || 0}\nSakit: ${presensiCounts['Sakit'] || 0}\nAlpha: ${presensiCounts['Alpha'] || 0}\nTanggal Presensi 7 Hari Terakhir: ${recentDatesText}\n`;
+    const presensiSummary = `\n🗓️ *Laporan Presensi*\n• Total: ${presensiFiltered.length}\n• Hadir: ${presensiCounts['Hadir'] || 0}\n• Izin: ${presensiCounts['Izin'] || 0}\n• Sakit: ${presensiCounts['Sakit'] || 0}\n• Alpha: ${presensiCounts['Alpha'] || 0}\n• Tanggal 7 Hari Terakhir: ${recentDatesText}\n`;
 
-    const ringkasanPerkembangan = `\nLaporan Perkembangan\nTotal Catatan: ${totalCatatan}\n`;
+    const ringkasanPerkembangan = `\n📘 *Laporan Perkembangan*\n• Total Catatan: ${totalCatatan}\n`;
     const lastInfo = lastPerkembangan
-      ? `Terakhir: ${formatDate(lastPerkembangan['Tanggal'] || '')} (${lastPerkembangan['Mata Pelajaran'] || '-'})\nPenguasaan: ${lastPerkembangan['Penguasaan'] || '-'}\nPenjelasan: ${lastPerkembangan['Penjelasan'] || '-'}\nKondisi: ${lastPerkembangan['Kondisi'] || '-'}\nCatatan: ${lastPerkembangan['Catatan'] || '-'}\n`
-      : 'Belum ada catatan perkembangan pada periode ini.\n';
+      ? `• Terakhir: ${formatDate(lastPerkembangan['Tanggal'] || '')} (${lastPerkembangan['Mata Pelajaran'] || '-'})\n• Penguasaan: ${lastPerkembangan['Penguasaan'] || '-'}\n• Penjelasan: ${lastPerkembangan['Penjelasan'] || '-'}\n• Kondisi: ${lastPerkembangan['Kondisi'] || '-'}\n• Catatan: ${lastPerkembangan['Catatan'] || '-'}\n`
+      : '• Belum ada catatan perkembangan pada periode ini.\n';
 
     const formatNilaiLine = (label: string, rows: Record<string, string>[]) => {
-      if (!rows.length) return `${label}: 0 data`;
+      if (!rows.length) return '';
       const latest = rows[0];
       const rerata = latest['Rerata'] || '-';
       const total = latest['Total'] || '-';
       const tanggal = formatDate(latest['Tanggal'] || '');
       const jenis = latest['Jenis Tes'] || '-';
-      return `${label}: ${tanggal} (${jenis}) | Rerata: ${rerata} | Total: ${total}`;
+      return `• ${label}: ${tanggal} (${jenis}) | Rerata: ${rerata} | Total: ${total}`;
     };
 
-    const nilaiSummary = `\nLaporan Nilai\n${formatNilaiLine('UTBK', nilaiBundle.utbk)}\n${formatNilaiLine('TKA SMA', nilaiBundle.tkaSma)}\n${formatNilaiLine('TKA SMP', nilaiBundle.tkaSmp)}\n${formatNilaiLine('TKA SD', nilaiBundle.tkaSd)}\n${formatNilaiLine('Tes Standar', nilaiBundle.tesStandar)}\n${formatNilaiLine('Evaluasi', nilaiBundle.evaluasi)}\n`;
+    const nilaiLines = [
+      formatNilaiLine('UTBK', nilaiBundle.utbk),
+      formatNilaiLine('TKA SMA', nilaiBundle.tkaSma),
+      formatNilaiLine('TKA SMP', nilaiBundle.tkaSmp),
+      formatNilaiLine('TKA SD', nilaiBundle.tkaSd),
+      formatNilaiLine('Tes Standar', nilaiBundle.tesStandar),
+      formatNilaiLine('Evaluasi', nilaiBundle.evaluasi),
+    ].filter(Boolean);
 
-    const pelayananSummary = `\nLaporan Pelayanan/Jam Tambahan\nTotal Sesi: ${pelayananFiltered.length}\n`;
+    const nilaiSummary = nilaiLines.length
+      ? `\n🏆 *Laporan Nilai*\n${nilaiLines.join('\n')}\n`
+      : '';
 
-    const footer = `\nTerima kasih atas perhatian Bapak/Ibu.`;
+    const pelayananSummary = `\n⏱️ *Laporan Pelayanan/Jam Tambahan*\n• Total Sesi: ${pelayananFiltered.length}\n`;
+
+    const footer = `\nTerima kasih atas perhatian Bapak/Ibu. 🙏`;
     return `${header}${biodata}${presensiSummary}${ringkasanPerkembangan}${lastInfo}${nilaiSummary}${pelayananSummary}${footer}`;
   }, [selectedStudentData, startDate, endDate, totalCatatan, lastPerkembangan, presensiFiltered, nilaiBundle, pelayananFiltered]);
 
@@ -502,7 +520,7 @@ export default function LaporanWhatsapp() {
                 <div className="bg-purple-50 border border-purple-100 rounded-xl p-3">
                   <p className="text-xs text-purple-600">Nilai (Total Data)</p>
                   <p className="text-lg font-bold text-purple-700 mt-1">
-                    {nilaiBundle.utbk.length + nilaiBundle.tkaSma.length + nilaiBundle.tkaSmp.length + nilaiBundle.tkaSd.length + nilaiBundle.tesStandar.length + nilaiBundle.evaluasi.length}
+                    {totalNilaiCount}
                   </p>
                 </div>
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
@@ -539,49 +557,49 @@ export default function LaporanWhatsapp() {
                 </table>
               </div>
 
-              <div className="border border-gray-100 rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-xs text-gray-500">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Jenis Nilai</th>
-                      <th className="px-3 py-2 text-left">Tanggal</th>
-                      <th className="px-3 py-2 text-left">Tes</th>
-                      <th className="px-3 py-2 text-right">Rerata</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {[
-                      ...nilaiBundle.utbk.map((row) => ({ type: 'UTBK', row })),
-                      ...nilaiBundle.tkaSma.map((row) => ({ type: 'TKA SMA', row })),
-                      ...nilaiBundle.tkaSmp.map((row) => ({ type: 'TKA SMP', row })),
-                      ...nilaiBundle.tkaSd.map((row) => ({ type: 'TKA SD', row })),
-                      ...nilaiBundle.tesStandar.map((row) => ({ type: 'Tes Standar', row })),
-                      ...nilaiBundle.evaluasi.map((row) => ({ type: 'Evaluasi', row })),
-                    ]
-                      .sort((a, b) => {
-                        const da = parseDateValue(a.row['Tanggal'] || '')?.getTime() || 0;
-                        const db = parseDateValue(b.row['Tanggal'] || '')?.getTime() || 0;
-                        return db - da;
-                      })
-                      .slice(0, 5)
-                      .map((item, idx) => (
-                        <tr key={`${item.type}-${idx}`}>
-                          <td className="px-3 py-2 text-gray-600">{item.type}</td>
-                          <td className="px-3 py-2 text-gray-600">{formatDate(item.row['Tanggal'] || '')}</td>
-                          <td className="px-3 py-2 text-gray-600">{item.row['Jenis Tes'] || '-'}</td>
-                          <td className="px-3 py-2 text-right text-gray-600">{item.row['Rerata'] || '-'}</td>
-                        </tr>
-                      ))}
-                    {nilaiBundle.utbk.length + nilaiBundle.tkaSma.length + nilaiBundle.tkaSmp.length + nilaiBundle.tkaSd.length + nilaiBundle.tesStandar.length + nilaiBundle.evaluasi.length === 0 && (
+              {totalNilaiCount > 0 && (
+                <div className="border border-gray-100 rounded-xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-xs text-gray-500">
                       <tr>
-                        <td colSpan={4} className="px-3 py-4 text-center text-gray-400">
-                          Tidak ada data nilai.
-                        </td>
+                        <th className="px-3 py-2 text-left">Jenis Nilai</th>
+                        <th className="px-3 py-2 text-left">Tanggal</th>
+                        <th className="px-3 py-2 text-left">Tes</th>
+                        <th className="px-3 py-2 text-right">Rerata</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {[
+                        ...nilaiBundle.utbk.map((row) => ({ type: 'UTBK', row })),
+                        ...nilaiBundle.tkaSma.map((row) => ({ type: 'TKA SMA', row })),
+                        ...nilaiBundle.tkaSmp.map((row) => ({ type: 'TKA SMP', row })),
+                        ...nilaiBundle.tkaSd.map((row) => ({ type: 'TKA SD', row })),
+                        ...nilaiBundle.tesStandar.map((row) => ({ type: 'Tes Standar', row })),
+                        ...nilaiBundle.evaluasi.map((row) => ({ type: 'Evaluasi', row })),
+                      ]
+                        .sort((a, b) => {
+                          const da = parseDateValue(a.row['Tanggal'] || '')?.getTime() || 0;
+                          const db = parseDateValue(b.row['Tanggal'] || '')?.getTime() || 0;
+                          return db - da;
+                        })
+                        .slice(0, 5)
+                        .map((item, idx) => (
+                          <tr key={`${item.type}-${idx}`}>
+                            <td className="px-3 py-2 text-gray-600">{item.type}</td>
+                            <td className="px-3 py-2 text-gray-600">{formatDate(item.row['Tanggal'] || '')}</td>
+                            <td className="px-3 py-2 text-gray-600">{item.row['Jenis Tes'] || '-'}</td>
+                            <td className="px-3 py-2 text-right text-gray-600">{item.row['Rerata'] || '-'}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {totalNilaiCount === 0 && (
+                <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs text-gray-500">
+                  Tidak ada data nilai pada periode ini.
+                </div>
+              )}
 
               <div className="border border-gray-100 rounded-xl overflow-hidden">
                 <table className="w-full text-sm">
