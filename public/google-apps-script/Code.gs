@@ -29,6 +29,11 @@ var SPREADSHEET_CONFIG = {
     sheetName: 'Siswa',
     headers: ['Nis', 'Nama', 'Tanggal Lahir', 'Asal Sekolah', 'Jenjang Studi', 'No.whatsapp siswa', 'No.whatsapp orang tua', 'Email', 'Kelompok Kelas', 'Cabang', 'Timestamp']
   },
+  kelompokKelas: {
+    spreadsheetId: '1qN1MJ7kVRbSnsV9-WblGikHmCTzLZOTezmuUBgrZ3-k',
+    sheetName: 'Kelompok Kelas',
+    headers: ['Kelompok Kelas', 'Timestamp']
+  },
   presensi: {
     spreadsheetId: '13oDDldQdcVBg5ai3nS9oGtYuq8ijWsloNRmXK87IHnw',
     sheetName: 'Presensi',

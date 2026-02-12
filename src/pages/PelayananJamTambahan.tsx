@@ -25,7 +25,7 @@ import {
   deleteRecord,
   isAppsScriptConfigured,
 } from '../services/googleSheets';
-import { parseSpreadsheetFile, generateTemplateCSV } from '../utils/importUtils';
+import { parseSpreadsheetFile, generateTemplateWorkbook, exportRecordsWorkbook } from '../utils/importUtils';
 import { useAuth } from '../contexts/AuthContext';
 
 const importFields = [
@@ -266,12 +266,11 @@ export default function PelayananJamTambahan() {
   };
 
   const handleTemplateDownload = () => {
-    const csv = generateTemplateCSV(importFields);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = generateTemplateWorkbook(importFields, 'Template Pelayanan');
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = 'Template_Pelayanan_Jam_Tambahan.csv';
+    a.download = 'Template_Pelayanan_Jam_Tambahan.xlsx';
     a.click();
     URL.revokeObjectURL(blobUrl);
   };
@@ -317,16 +316,11 @@ export default function PelayananJamTambahan() {
 
   const handleExportCSV = () => {
     if (sortedPelayanan.length === 0) return;
-    const headers = importFields.map((f) => f.label);
-    const rows = sortedPelayanan.map((row) =>
-      importFields.map((f) => `"${(row[f.key] || '').replace(/"/g, '""')}"`)
-    );
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = exportRecordsWorkbook(importFields, sortedPelayanan, 'Pelayanan');
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = `Pelayanan_Jam_Tambahan_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `Pelayanan_Jam_Tambahan_${new Date().toISOString().slice(0, 10)}.xlsx`;
     a.click();
     URL.revokeObjectURL(blobUrl);
   };
@@ -500,10 +494,10 @@ export default function PelayananJamTambahan() {
       >
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700">
-            <p className="font-medium">Panduan Import:</p>
+            <p className="font-medium">Panduan Import (Excel):</p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
-              <li>Gunakan template CSV yang sudah disediakan.</li>
-              <li>Pastikan header sesuai dengan kolom pada spreadsheet.</li>
+              <li>Gunakan template Excel (.xlsx) yang sudah disediakan.</li>
+              <li>Pastikan header sesuai dengan kolom pada server database.</li>
               <li>Kolom Timestamp tidak perlu diisi.</li>
             </ul>
             <div className="mt-3">
@@ -520,7 +514,7 @@ export default function PelayananJamTambahan() {
 
           <input
             type="file"
-            accept=".xlsx,.xls,.csv"
+            accept=".xlsx,.xls"
             onChange={(e) => handleImportFileChange(e.target.files?.[0] || null)}
             className="w-full text-sm text-gray-600 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:bg-blue-600 file:text-white file:text-sm file:font-medium hover:file:bg-blue-700"
           />

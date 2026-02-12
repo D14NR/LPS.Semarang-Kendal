@@ -13,7 +13,7 @@ import {
   getCacheAge,
   type SheetKey,
 } from '../services/googleSheets';
-import { parseSpreadsheetFile, generateTemplateCSV } from '../utils/importUtils';
+import { parseSpreadsheetFile, generateTemplateWorkbook, exportRecordsWorkbook } from '../utils/importUtils';
 import { useAuth } from '../contexts/AuthContext';
 
 interface FieldConfig {
@@ -22,6 +22,8 @@ interface FieldConfig {
   type?: 'text' | 'date' | 'email' | 'tel' | 'number' | 'select' | 'textarea' | 'multiselect-checkbox';
   options?: string[];
   asyncOptions?: () => Promise<string[]>;
+  canCreateOption?: boolean;
+  createOptionLabel?: string;
   required?: boolean;
   width?: string;
   render?: (value: string, row: Record<string, string>) => React.ReactNode;
@@ -134,11 +136,25 @@ interface MultiSelectCheckboxProps {
   options: string[];
   loading: boolean;
   placeholder?: string;
+  allowCreate?: boolean;
+  createLabel?: string;
+  onCreateOption?: (value: string) => Promise<void> | void;
 }
 
-function MultiSelectCheckbox({ value, onChange, options, loading, placeholder }: MultiSelectCheckboxProps) {
+function MultiSelectCheckbox({
+  value,
+  onChange,
+  options,
+  loading,
+  placeholder,
+  allowCreate,
+  createLabel,
+  onCreateOption,
+}: MultiSelectCheckboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [newOption, setNewOption] = useState('');
+  const [creating, setCreating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Parse value: stored as comma-separated string
@@ -164,6 +180,16 @@ function MultiSelectCheckbox({ value, onChange, options, loading, placeholder }:
     return options.filter(opt => opt.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [options, searchTerm]);
 
+  useEffect(() => {
+    if (!searchTerm) {
+      setNewOption('');
+      return;
+    }
+    if (filteredOptions.length === 0) {
+      setNewOption(searchTerm);
+    }
+  }, [searchTerm, filteredOptions.length]);
+
   const toggleItem = (item: string) => {
     let newSelected: string[];
     if (selectedItems.includes(item)) {
@@ -185,6 +211,20 @@ function MultiSelectCheckbox({ value, onChange, options, loading, placeholder }:
 
   const clearAll = () => {
     onChange('');
+  };
+
+  const handleCreate = async () => {
+    if (!onCreateOption) return;
+    const trimmed = newOption.trim();
+    if (!trimmed) return;
+    try {
+      setCreating(true);
+      await onCreateOption(trimmed);
+      setNewOption('');
+      setSearchTerm('');
+    } finally {
+      setCreating(false);
+    }
   };
 
   if (loading) {
@@ -278,6 +318,29 @@ function MultiSelectCheckbox({ value, onChange, options, loading, placeholder }:
               </button>
             </div>
           </div>
+
+          {allowCreate && onCreateOption && filteredOptions.length === 0 && searchTerm && (
+            <div className="px-3 py-3 border-b border-gray-100 bg-white">
+              <p className="text-xs text-gray-500 mb-2">Opsi tidak ditemukan. Tambahkan baru:</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newOption}
+                  onChange={(e) => setNewOption(e.target.value)}
+                  placeholder={createLabel ? `Tambah ${createLabel}...` : 'Tambah opsi...'}
+                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  disabled={creating || !newOption.trim()}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {creating ? 'Menyimpan...' : 'Tambah'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Options List */}
           <div className="max-h-56 overflow-y-auto p-1.5">
@@ -562,12 +625,11 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
   };
 
   const handleTemplateDownload = () => {
-    const csv = generateTemplateCSV(fields);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = generateTemplateWorkbook(fields, `Template_${title}`);
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = `Template_${title.replace(/\s+/g, '_')}.csv`;
+    a.download = `Template_${title.replace(/\s+/g, '_')}.xlsx`;
     a.click();
     URL.revokeObjectURL(blobUrl);
   };
@@ -753,17 +815,11 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
 
   const handleExportCSV = () => {
     if (sortedData.length === 0) return;
-    const visibleFields = fields;
-    const headers = visibleFields.map((f) => f.label);
-    const rows = sortedData.map((row) =>
-      visibleFields.map((f) => `"${(row[f.key] || '').replace(/"/g, '""')}"`)
-    );
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = exportRecordsWorkbook(fields, sortedData, title);
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = `${title.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `${title.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`;
     a.click();
     URL.revokeObjectURL(blobUrl);
   };
@@ -782,6 +838,38 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
   const formFields = fields.filter((f) => !f.hideInForm);
   const apiConfigured = isAppsScriptConfigured();
   const isFiltered = user && !user.isAdmin && sheetKey !== 'pengajar';
+
+  const handleAddOption = async (field: FieldConfig, newValueParam?: string) => {
+    if (!field.canCreateOption) return;
+    if (!field.asyncOptions && (!field.options || field.options.length === 0)) return;
+    const inputValue = newValueParam ?? window.prompt(`Tambah ${field.createOptionLabel || field.label} baru:`) ?? '';
+    const newValue = inputValue ? inputValue.trim() : '';
+    if (!newValue) return;
+
+    try {
+      const result = await createRecord('kelompokKelas', { 'Kelompok Kelas': newValue });
+      if (result.success) {
+        if (field.asyncOptions) {
+          const refreshed = await field.asyncOptions();
+          setAsyncOptionsMap((prev) => {
+            const current = prev[field.key] || [];
+            const merged = Array.from(new Set([...(current || []), ...(refreshed || []), newValue])).sort();
+            return { ...prev, [field.key]: merged };
+          });
+        } else {
+          setAsyncOptionsMap((prev) => ({
+            ...prev,
+            [field.key]: Array.from(new Set([...(prev[field.key] || []), newValue])).sort(),
+          }));
+        }
+        showToast('success', `Kelompok Kelas "${newValue}" berhasil ditambahkan.`);
+        return;
+      }
+      showToast('error', result.message);
+    } catch (error) {
+      showToast('error', `Gagal menambahkan: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -957,10 +1045,10 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
       >
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700">
-            <p className="font-medium">Panduan Import:</p>
+            <p className="font-medium">Panduan Import (Excel):</p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
-              <li>Gunakan template CSV yang sudah disediakan.</li>
-              <li>Pastikan header sesuai dengan kolom pada spreadsheet.</li>
+              <li>Gunakan template Excel (.xlsx) yang sudah disediakan.</li>
+              <li>Pastikan header sesuai dengan kolom pada server database.</li>
               <li>Kolom Timestamp tidak perlu diisi.</li>
             </ul>
             <div className="mt-3">
@@ -978,7 +1066,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
           <input
             ref={fileInputRef}
             type="file"
-            accept=".xlsx,.xls,.csv"
+            accept=".xlsx,.xls"
             onChange={(e) => handleImportFileChange(e.target.files?.[0] || null)}
             className="w-full text-sm text-gray-600 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:bg-blue-600 file:text-white file:text-sm file:font-medium hover:file:bg-blue-700"
           />
@@ -1073,13 +1161,18 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
                     )}
                   </label>
                   {field.type === 'multiselect-checkbox' ? (
-                    <MultiSelectCheckbox
-                      value={formData[field.key] || ''}
-                      onChange={(val) => setFormData((prev) => ({ ...prev, [field.key]: val }))}
-                      options={asyncOptionsMap[field.key] || field.options || []}
-                      loading={asyncOptionsLoading[field.key] || false}
-                      placeholder={`Pilih ${field.label}...`}
-                    />
+                    <div className="space-y-2">
+                      <MultiSelectCheckbox
+                        value={formData[field.key] || ''}
+                        onChange={(val) => setFormData((prev) => ({ ...prev, [field.key]: val }))}
+                        options={asyncOptionsMap[field.key] || field.options || []}
+                        loading={asyncOptionsLoading[field.key] || false}
+                        placeholder={`Pilih ${field.label}...`}
+                        allowCreate={field.canCreateOption && apiConfigured}
+                        createLabel={field.createOptionLabel || field.label}
+                        onCreateOption={field.canCreateOption && apiConfigured ? (val) => handleAddOption(field, val) : undefined}
+                      />
+                    </div>
                   ) : field.type === 'select' ? (
                     <div className="space-y-2">
                       <SearchableSelect

@@ -29,6 +29,8 @@ const fields = [
     label: 'Kelompok Kelas',
     type: 'multiselect-checkbox' as const,
     asyncOptions: fetchKelompokKelasOptions,
+    canCreateOption: true,
+    createOptionLabel: 'Kelompok Kelas',
     colSpan: 2,
     render: (value: string) => {
       if (!value) return <span className="text-gray-400">-</span>;

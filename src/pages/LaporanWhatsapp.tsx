@@ -250,12 +250,19 @@ export default function LaporanWhatsapp() {
 
   const whatsappNumber = useMemo(() => {
     if (!selectedStudentData) return '';
-    const raw =
+    const parentRaw =
       selectedStudentData['No.whatsapp orang tua'] ||
       selectedStudentData['No. whatsapp orang tua'] ||
       selectedStudentData['No Whatsapp Orang Tua'] ||
       '';
-    return normalizePhone(raw);
+    const studentRaw =
+      selectedStudentData['No.whatsapp siswa'] ||
+      selectedStudentData['No. whatsapp siswa'] ||
+      selectedStudentData['No Whatsapp Siswa'] ||
+      selectedStudentData['Tlpn'] ||
+      selectedStudentData['Telepon'] ||
+      '';
+    return normalizePhone(parentRaw || studentRaw);
   }, [selectedStudentData]);
 
   const messageText = useMemo(() => {
@@ -489,9 +496,14 @@ export default function LaporanWhatsapp() {
                     Kirim WhatsApp
                   </button>
                 </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  {selectedStudentData?.['No.whatsapp orang tua'] || selectedStudentData?.['No. whatsapp orang tua'] || selectedStudentData?.['No Whatsapp Orang Tua']
+                    ? 'Laporan dikirim ke nomor WhatsApp orang tua.'
+                    : 'Nomor WhatsApp orang tua kosong, laporan akan dikirim ke nomor WhatsApp siswa.'}
+                </p>
                 {!whatsappNumber && (
                   <p className="text-xs text-red-600 mt-2">
-                    Nomor WhatsApp orang tua belum tersedia.
+                    Nomor WhatsApp orang tua/siswa belum tersedia.
                   </p>
                 )}
               </>

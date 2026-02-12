@@ -22,6 +22,15 @@ export interface ParseResult {
 }
 
 export async function parseSpreadsheetFile(file: File, fields: ImportField[]): Promise<ParseResult> {
+  const fileName = file.name.toLowerCase();
+  if (!(fileName.endsWith('.xlsx') || fileName.endsWith('.xls'))) {
+    return {
+      records: [],
+      preview: [],
+      headers: [],
+      error: 'File harus berformat Excel (.xlsx atau .xls).',
+    };
+  }
   try {
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: 'array' });
@@ -82,9 +91,29 @@ export async function parseSpreadsheetFile(file: File, fields: ImportField[]): P
   }
 }
 
-export function generateTemplateCSV(fields: ImportField[]): string {
+export function generateTemplateWorkbook(fields: ImportField[], sheetName = 'Template'): Blob {
   const headers = fields
     .filter((field) => field.key.toLowerCase() !== 'timestamp')
     .map((field) => field.key);
-  return headers.join(',');
+
+  const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+
+  const arrayBuffer = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+  return new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+export function exportRecordsWorkbook(
+  fields: ImportField[],
+  records: Record<string, string>[],
+  sheetName = 'Data'
+): Blob {
+  const headers = fields.map((field) => field.label);
+  const data = records.map((row) => fields.map((field) => row[field.key] || ''));
+  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  const arrayBuffer = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+  return new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }

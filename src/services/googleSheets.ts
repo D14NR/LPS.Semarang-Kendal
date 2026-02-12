@@ -495,6 +495,9 @@ export async function createRecord(key: SheetKey, data: Record<string, string>):
       if (result.success) {
         // Invalidate cache so next fetch gets fresh data
         invalidateCache(key);
+        if (key === 'kelompokKelas') {
+          invalidateOptionsCache('kelompokKelas');
+        }
         const newRecord = (result.data as Record<string, string>) || {};
         return {
           success: true,
@@ -537,6 +540,9 @@ export async function createBulkRecords(key: SheetKey, dataArray: Record<string,
 
       if (result.success) {
         invalidateCache(key);
+        if (key === 'kelompokKelas') {
+          invalidateOptionsCache('kelompokKelas');
+        }
         return { success: true, message: result.message, totalAdded: result.totalAdded };
       }
       return { success: false, message: result.message };
@@ -635,6 +641,19 @@ export function getSpreadsheetUrl(key: SheetKey): string {
  */
 const optionsCache = new Map<string, { data: string[]; timestamp: number }>();
 const OPTIONS_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+export function invalidateOptionsCache(sheetKey?: SheetKey) {
+  if (!sheetKey) {
+    optionsCache.clear();
+    return;
+  }
+  const prefix = `options_${sheetKey}_`;
+  Array.from(optionsCache.keys()).forEach((key) => {
+    if (key.startsWith(prefix)) {
+      optionsCache.delete(key);
+    }
+  });
+}
 
 export async function fetchSheetOptions(sheetKey: SheetKey, columnHeader?: string): Promise<string[]> {
   const cacheKey = `options_${sheetKey}_${columnHeader || 'A'}`;
