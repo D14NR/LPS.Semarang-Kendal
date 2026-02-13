@@ -467,6 +467,12 @@ export default function PrintRaporSiswa() {
           <p className="text-sm text-gray-500 mt-1">
             Pilih periode, jenjang, dan siswa untuk melihat laporan lengkap.
           </p>
+          {(loading || refreshing) && (
+            <div className="mt-2 inline-flex items-center gap-2 text-xs text-blue-600">
+              <span className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+              Memuat data...
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -475,7 +481,7 @@ export default function PrintRaporSiswa() {
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-50"
           >
             <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-            Refresh
+            {refreshing ? 'Memuat...' : 'Refresh'}
           </button>
           <button
             onClick={() => window.print()}

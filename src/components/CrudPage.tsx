@@ -915,6 +915,12 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
             {cachedInfo && (
               <span className="text-gray-400 text-xs">📦 cache {cachedInfo}</span>
             )}
+            {(loading || refreshing) && (
+              <span className="inline-flex items-center gap-2 text-xs text-blue-600">
+                <span className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                Memuat data...
+              </span>
+            )}
             {apiConfigured && (
               <span className="inline-flex items-center gap-1 text-green-600 text-xs">
                 <CheckCircle size={12} /> CRUD
@@ -1029,7 +1035,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
         <DataTable
           columns={columns}
           data={sortedData}
-          loading={loading}
+          loading={loading || refreshing}
           onView={openViewModal}
           onEdit={apiConfigured ? openEditModal : undefined}
           onDelete={apiConfigured ? (row) => setDeleteConfirm(row) : undefined}

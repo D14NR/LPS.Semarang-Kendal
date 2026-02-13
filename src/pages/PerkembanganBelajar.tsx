@@ -196,7 +196,8 @@ export default function PerkembanganBelajar() {
       const matchesKelas = kelasValue.includes(kelompokKelas);
       if (!matchesKelas) return false;
       if (effectiveCabang) {
-        return (row['Cabang'] || '').trim().toLowerCase() === effectiveCabang.toLowerCase();
+        const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
+        if (rowCabang !== effectiveCabang.toLowerCase()) return false;
       }
       if (!keyword) return true;
       const nis = (row['Nis'] || '').toLowerCase();
@@ -511,7 +512,7 @@ export default function PerkembanganBelajar() {
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-50 shadow-sm"
           >
             <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-            {refreshing ? 'Loading...' : 'Refresh'}
+            {refreshing ? 'Memuat...' : 'Refresh'}
           </button>
           <button
             onClick={handleExportCSV}
@@ -543,11 +544,19 @@ export default function PerkembanganBelajar() {
 
       {/* Riwayat Perkembangan */}
       <div className="bg-white rounded-2xl border border-gray-200 p-4 lg:p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Riwayat Perkembangan</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-800">Riwayat Perkembangan</h2>
+          {(loading || refreshing) && (
+            <span className="inline-flex items-center gap-2 text-xs text-blue-600">
+              <span className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+              Memuat data...
+            </span>
+          )}
+        </div>
         <DataTable
           columns={columns}
           data={sortedPerkembangan}
-          loading={loading}
+          loading={loading || refreshing}
           onEdit={apiConfigured ? openEditModal : undefined}
           onDelete={apiConfigured ? (row) => setDeleteConfirm(row) : undefined}
         />
@@ -784,7 +793,7 @@ export default function PerkembanganBelajar() {
                     {paginatedSiswa.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-6 text-center text-gray-400">
-                          Tidak ada siswa pada kelompok ini.
+                          {searchTerm ? 'Tidak ada siswa sesuai pencarian.' : 'Tidak ada siswa pada kelompok ini.'}
                         </td>
                       </tr>
                     ) : (

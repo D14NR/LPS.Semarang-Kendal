@@ -458,7 +458,7 @@ export default function PelayananJamTambahan() {
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-50 shadow-sm"
           >
             <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-            {refreshing ? 'Loading...' : 'Refresh'}
+            {refreshing ? 'Memuat...' : 'Refresh'}
           </button>
           <button
             onClick={handleExportCSV}
@@ -490,11 +490,19 @@ export default function PelayananJamTambahan() {
 
       {/* Riwayat Pelayanan */}
       <div className="bg-white rounded-2xl border border-gray-200 p-4 lg:p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Riwayat Pelayanan</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-800">Riwayat Pelayanan</h2>
+          {(loading || refreshing) && (
+            <span className="inline-flex items-center gap-2 text-xs text-blue-600">
+              <span className="w-3 h-3 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+              Memuat data...
+            </span>
+          )}
+        </div>
         <DataTable
           columns={columns}
           data={sortedPelayanan}
-          loading={loading}
+          loading={loading || refreshing}
           onEdit={apiConfigured ? openEditModal : undefined}
           onDelete={apiConfigured ? (row) => setDeleteConfirm(row) : undefined}
         />
