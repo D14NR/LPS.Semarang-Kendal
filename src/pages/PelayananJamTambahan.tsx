@@ -14,6 +14,8 @@ import {
   Download,
   UploadCloud,
   FileDown,
+  MapPin,
+  ClipboardCheck,
 } from 'lucide-react';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
@@ -83,6 +85,8 @@ export default function PelayananJamTambahan() {
   const [selectedCabang, setSelectedCabang] = useState('');
   const [selectedSiswa, setSelectedSiswa] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 10;
 
   const [editingRecord, setEditingRecord] = useState<Record<string, string> | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
@@ -186,6 +190,16 @@ export default function PelayananJamTambahan() {
     });
   }, [siswaData, jenjang, effectiveCabang, searchTerm]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [jenjang, searchTerm, effectiveCabang]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredSiswa.length / perPage)), [filteredSiswa.length, perPage]);
+  const paginatedSiswa = useMemo(
+    () => filteredSiswa.slice((currentPage - 1) * perPage, currentPage * perPage),
+    [filteredSiswa, currentPage, perPage]
+  );
+
   const selectedCount = useMemo(() => Object.values(selectedSiswa).filter(Boolean).length, [selectedSiswa]);
 
   const toggleSiswa = (nis: string) => {
@@ -202,6 +216,7 @@ export default function PelayananJamTambahan() {
     setSelectedCabang('');
     setSelectedSiswa({});
     setSearchTerm('');
+    setCurrentPage(1);
   };
 
   const handleOpenInput = () => {
@@ -590,75 +605,69 @@ export default function PelayananJamTambahan() {
         onClose={() => setInputOpen(false)}
         title="Input Pelayanan / Jam Tambahan"
         size="xl"
-        contentClassName="overflow-visible"
+        contentClassName="overflow-y-auto"
       >
         <div className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tanggal</label>
-              <div className="relative">
-                <CalendarDays size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="date"
-                  value={tanggal}
-                  onChange={(e) => setTanggal(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 min-h-[120px]">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <CalendarDays size={16} className="text-gray-400" /> Tanggal
+              </label>
+              <input
+                type="date"
+                value={tanggal}
+                onChange={(e) => setTanggal(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Mata Pelajaran</label>
-              <div className="relative">
-                <BookOpen size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <div className="ml-6">
-                  <SearchableSelect
-                    value={mataPelajaran}
-                    onChange={(val) => {
-                      setMataPelajaran(val);
-                      setPengajar('');
-                    }}
-                    options={mataPelajaranOptions}
-                    placeholder="Pilih Mata Pelajaran"
-                  />
-                </div>
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <BookOpen size={16} className="text-gray-400" /> Mata Pelajaran
+              </label>
+              <SearchableSelect
+                value={mataPelajaran}
+                onChange={(val) => {
+                  setMataPelajaran(val);
+                  setPengajar('');
+                }}
+                options={mataPelajaranOptions}
+                placeholder="Pilih Mata Pelajaran"
+              />
               {mataPelajaranOptions.length === 0 && (
-                <p className="text-xs text-amber-600 mt-1">Data Mata Pelajaran belum tersedia di menu Nama Pengajar.</p>
+                <p className="text-xs text-amber-600">Data Mata Pelajaran belum tersedia di menu Nama Pengajar.</p>
               )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Pengajar</label>
-              <div className="relative">
-                <UserCheck size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <div className="ml-6">
-                  <SearchableSelect
-                    value={pengajar}
-                    onChange={(val) => setPengajar(val)}
-                    options={pengajarOptions}
-                    placeholder="Pilih Pengajar"
-                    disabled={!mataPelajaran}
-                  />
-                </div>
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <UserCheck size={16} className="text-gray-400" /> Pengajar
+              </label>
+              <SearchableSelect
+                value={pengajar}
+                onChange={(val) => setPengajar(val)}
+                options={pengajarOptions}
+                placeholder="Pilih Pengajar"
+                disabled={!mataPelajaran}
+              />
               {mataPelajaran && pengajarOptions.length === 0 && (
-                <p className="text-xs text-amber-600 mt-1">Belum ada pengajar untuk mata pelajaran ini.</p>
+                <p className="text-xs text-amber-600">Belum ada pengajar untuk mata pelajaran ini.</p>
               )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Durasi</label>
-              <div className="relative">
-                <Clock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={durasi}
-                  onChange={(e) => setDurasi(e.target.value)}
-                  placeholder="Contoh: 90 menit"
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <Clock size={16} className="text-gray-400" /> Durasi
+              </label>
+              <input
+                type="text"
+                value={durasi}
+                onChange={(e) => setDurasi(e.target.value)}
+                placeholder="Contoh: 90 menit"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
             </div>
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Materi (Opsional)</label>
+            <div className="lg:col-span-2 space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <BookOpen size={16} className="text-gray-400" /> Materi (Opsional)
+              </label>
               <input
                 type="text"
                 value={materi}
@@ -668,8 +677,10 @@ export default function PelayananJamTambahan() {
               />
             </div>
             {user?.isAdmin && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Cabang</label>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <MapPin size={16} className="text-gray-400" /> Cabang
+                </label>
                 <SearchableSelect
                   value={selectedCabang}
                   onChange={(val) => {
@@ -681,8 +692,10 @@ export default function PelayananJamTambahan() {
                 />
               </div>
             )}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Jenjang Studi</label>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <ClipboardCheck size={16} className="text-gray-400" /> Jenjang Studi
+              </label>
               <SearchableSelect
                 value={jenjang}
                 onChange={(val) => {
@@ -731,7 +744,7 @@ export default function PelayananJamTambahan() {
                 </button>
               </div>
 
-              <div className="overflow-x-auto border border-gray-200 rounded-xl">
+              <div className="max-h-[420px] overflow-auto border border-gray-200 rounded-xl">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
@@ -742,14 +755,14 @@ export default function PelayananJamTambahan() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredSiswa.length === 0 ? (
+                    {paginatedSiswa.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-4 py-6 text-center text-gray-400">
                           Tidak ada siswa pada jenjang ini.
                         </td>
                       </tr>
                     ) : (
-                      filteredSiswa.map((row) => (
+                      paginatedSiswa.map((row) => (
                         <tr key={row['Nis']} className="hover:bg-blue-50/50">
                           <td className="px-4 py-3">
                             <input
@@ -768,6 +781,33 @@ export default function PelayananJamTambahan() {
                   </tbody>
                 </table>
               </div>
+
+              {filteredSiswa.length > perPage && (
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600">
+                  <p>
+                    Menampilkan {(currentPage - 1) * perPage + 1} - {Math.min(currentPage * perPage, filteredSiswa.length)} dari {filteredSiswa.length} siswa
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-xs">Hal {currentPage} / {totalPages}</span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

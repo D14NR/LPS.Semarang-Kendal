@@ -11,6 +11,10 @@ import {
   Download,
   UploadCloud,
   FileDown,
+  Search,
+  TrendingUp,
+  MapPin,
+  ClipboardCheck,
 } from 'lucide-react';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
@@ -100,6 +104,9 @@ export default function PerkembanganBelajar() {
   const [kelompokKelas, setKelompokKelas] = useState('');
   const [selectedCabang, setSelectedCabang] = useState('');
   const [rowInputs, setRowInputs] = useState<Record<string, { Penguasaan: string; Penjelasan: string; Kondisi: string; Catatan: string }>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 10;
 
   const [editingRecord, setEditingRecord] = useState<Record<string, string> | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
@@ -177,8 +184,13 @@ export default function PerkembanganBelajar() {
 
   const canShowTable = Boolean(tanggal && mataPelajaran && kelompokKelas && (user?.isAdmin ? effectiveCabang : true));
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [kelompokKelas, searchTerm, effectiveCabang]);
+
   const filteredSiswa = useMemo(() => {
     if (!kelompokKelas) return [];
+    const keyword = searchTerm.trim().toLowerCase();
     return siswaData.filter((row) => {
       const kelasValue = (row['Kelompok Kelas'] || '').split(',').map((s) => s.trim());
       const matchesKelas = kelasValue.includes(kelompokKelas);
@@ -186,9 +198,18 @@ export default function PerkembanganBelajar() {
       if (effectiveCabang) {
         return (row['Cabang'] || '').trim().toLowerCase() === effectiveCabang.toLowerCase();
       }
-      return true;
+      if (!keyword) return true;
+      const nis = (row['Nis'] || '').toLowerCase();
+      const nama = (row['Nama'] || '').toLowerCase();
+      return nis.includes(keyword) || nama.includes(keyword);
     });
-  }, [siswaData, kelompokKelas, effectiveCabang]);
+  }, [siswaData, kelompokKelas, effectiveCabang, searchTerm]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredSiswa.length / perPage)), [filteredSiswa.length, perPage]);
+  const paginatedSiswa = useMemo(
+    () => filteredSiswa.slice((currentPage - 1) * perPage, currentPage * perPage),
+    [filteredSiswa, currentPage, perPage]
+  );
 
   const filledCount = useMemo(() => {
     return Object.values(rowInputs).filter((val) => {
@@ -203,6 +224,8 @@ export default function PerkembanganBelajar() {
     setKelompokKelas('');
     setSelectedCabang('');
     setRowInputs({});
+    setSearchTerm('');
+    setCurrentPage(1);
   };
 
   const handleOpenInput = () => {
@@ -635,41 +658,39 @@ export default function PerkembanganBelajar() {
         onClose={() => setInputOpen(false)}
         title="Input Perkembangan Belajar"
         size="xl"
-        contentClassName="overflow-visible"
+        contentClassName="overflow-y-auto"
       >
         <div className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tanggal</label>
-              <div className="relative">
-                <CalendarDays size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="date"
-                  value={tanggal}
-                  onChange={(e) => setTanggal(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 min-h-[120px]">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <CalendarDays size={16} className="text-gray-400" /> Tanggal
+              </label>
+              <input
+                type="date"
+                value={tanggal}
+                onChange={(e) => setTanggal(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Mata Pelajaran</label>
-              <div className="relative">
-                <BookOpen size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <div className="ml-6">
-                  <SearchableSelect
-                    value={mataPelajaran}
-                    onChange={(val) => setMataPelajaran(val)}
-                    options={mataPelajaranOptions}
-                    placeholder="Pilih Mata Pelajaran"
-                  />
-                </div>
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <BookOpen size={16} className="text-gray-400" /> Mata Pelajaran
+              </label>
+              <SearchableSelect
+                value={mataPelajaran}
+                onChange={(val) => setMataPelajaran(val)}
+                options={mataPelajaranOptions}
+                placeholder="Pilih Mata Pelajaran"
+              />
               {mataPelajaranOptions.length === 0 && (
-                <p className="text-xs text-amber-600 mt-1">Data Mata Pelajaran belum tersedia di menu Nama Pengajar.</p>
+                <p className="text-xs text-amber-600">Data Mata Pelajaran belum tersedia di menu Nama Pengajar.</p>
               )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Materi (Opsional)</label>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <TrendingUp size={16} className="text-gray-400" /> Materi (Opsional)
+              </label>
               <input
                 type="text"
                 value={materi}
@@ -679,8 +700,10 @@ export default function PerkembanganBelajar() {
               />
             </div>
             {user?.isAdmin && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Cabang</label>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <MapPin size={16} className="text-gray-400" /> Cabang
+                </label>
                 <SearchableSelect
                   value={selectedCabang}
                   onChange={(val) => {
@@ -693,8 +716,10 @@ export default function PerkembanganBelajar() {
                 />
               </div>
             )}
-            <div className={user?.isAdmin ? '' : 'md:col-span-2 lg:col-span-2'}>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Kelompok Kelas</label>
+            <div className={user?.isAdmin ? 'space-y-1.5' : 'md:col-span-2 lg:col-span-2 space-y-1.5'}>
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <ClipboardCheck size={16} className="text-gray-400" /> Kelompok Kelas
+              </label>
               <SearchableSelect
                 value={kelompokKelas}
                 onChange={(val) => {
@@ -715,12 +740,24 @@ export default function PerkembanganBelajar() {
             </div>
           )}
 
-          {canShowTable && (
+                      {canShowTable && (
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm text-gray-600">
-                  Total siswa: <strong>{filteredSiswa.length}</strong> • Terisi: <strong>{filledCount}</strong>
-                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-sm text-gray-600">
+                    Total siswa: <strong>{filteredSiswa.length}</strong> • Terisi: <strong>{filledCount}</strong>
+                  </p>
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Cari nama/NIS"
+                      className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
                 <button
                   onClick={handleSubmitPerkembangan}
                   disabled={submitting || filledCount === 0}
@@ -731,7 +768,7 @@ export default function PerkembanganBelajar() {
                 </button>
               </div>
 
-              <div className="overflow-x-auto border border-gray-200 rounded-xl">
+              <div className="max-h-[420px] overflow-auto border border-gray-200 rounded-xl">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
@@ -744,14 +781,14 @@ export default function PerkembanganBelajar() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredSiswa.length === 0 ? (
+                    {paginatedSiswa.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-6 text-center text-gray-400">
                           Tidak ada siswa pada kelompok ini.
                         </td>
                       </tr>
                     ) : (
-                      filteredSiswa.map((row) => {
+                      paginatedSiswa.map((row) => {
                         const input = rowInputs[row['Nis']] || { Penguasaan: '', Penjelasan: '', Kondisi: '', Catatan: '' };
                         return (
                           <tr key={row['Nis']} className="hover:bg-blue-50/50">
@@ -809,6 +846,33 @@ export default function PerkembanganBelajar() {
                   </tbody>
                 </table>
               </div>
+
+              {filteredSiswa.length > perPage && (
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600">
+                  <p>
+                    Menampilkan {(currentPage - 1) * perPage + 1} - {Math.min(currentPage * perPage, filteredSiswa.length)} dari {filteredSiswa.length} siswa
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-xs">Hal {currentPage} / {totalPages}</span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -35,6 +35,7 @@ export default function SearchableSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+
   const filteredOptions = useMemo(() => {
     if (!searchTerm) return options;
     return options.filter((opt) => opt.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -51,7 +52,7 @@ export default function SearchableSelect({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen((prev) => !prev)}
-        className={`w-full ${basePadding} border rounded-xl ${textSize} text-left flex items-center gap-2 transition-all ${
+        className={`w-full ${basePadding} border rounded-xl ${textSize} text-left flex items-center gap-2 transition-all relative ${
           disabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white hover:border-gray-300'
         } ${open ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-200'}`}
       >
@@ -76,7 +77,10 @@ export default function SearchableSelect({
       </button>
 
       {open && !disabled && (
-        <div className="absolute z-[120] mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in">
+        <div
+          data-select-dropdown
+          className="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in z-[200]"
+        >
           <div className="p-2 border-b border-gray-100">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

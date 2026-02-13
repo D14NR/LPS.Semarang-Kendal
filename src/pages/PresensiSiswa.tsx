@@ -11,6 +11,9 @@ import {
   Download,
   UploadCloud,
   FileDown,
+  Search,
+  MapPin,
+  ClipboardCheck,
 } from 'lucide-react';
 
 const importFields = [
@@ -82,6 +85,9 @@ export default function PresensiSiswa() {
   const [kelompokKelas, setKelompokKelas] = useState('');
   const [selectedCabang, setSelectedCabang] = useState('');
   const [statusMap, setStatusMap] = useState<Record<string, string>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 10;
 
   const [importOpen, setImportOpen] = useState(false);
   const [importPreview, setImportPreview] = useState<Record<string, string>[]>([]);
@@ -160,9 +166,13 @@ export default function PresensiSiswa() {
 
   const canShowTable = Boolean(tanggal && mataPelajaran && kelompokKelas && (user?.isAdmin ? effectiveCabang : true));
 
-  const filteredSiswa = useMemo(() => {
-    if (!kelompokKelas) return [];
-    return siswaData.filter((row) => {
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [kelompokKelas, searchTerm, effectiveCabang]);
+
+  const hasMatchingStudents = useMemo(() => {
+    if (!kelompokKelas) return false;
+    return siswaData.some((row) => {
       const kelasValue = (row['Kelompok Kelas'] || '').split(',').map((s) => s.trim());
       const matchesKelas = kelasValue.includes(kelompokKelas);
       if (!matchesKelas) return false;
@@ -172,6 +182,30 @@ export default function PresensiSiswa() {
       return true;
     });
   }, [siswaData, kelompokKelas, effectiveCabang]);
+
+  const filteredSiswa = useMemo(() => {
+    if (!kelompokKelas) return [];
+    const keyword = searchTerm.trim().toLowerCase();
+    return siswaData.filter((row) => {
+      const kelasValue = (row['Kelompok Kelas'] || '').split(',').map((s) => s.trim());
+      const matchesKelas = kelasValue.includes(kelompokKelas);
+      if (!matchesKelas) return false;
+      if (effectiveCabang) {
+        const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
+        if (rowCabang !== effectiveCabang.toLowerCase()) return false;
+      }
+      if (!keyword) return true;
+      const nis = (row['Nis'] || '').toLowerCase();
+      const nama = (row['Nama'] || '').toLowerCase();
+      return nis.includes(keyword) || nama.includes(keyword);
+    });
+  }, [siswaData, kelompokKelas, effectiveCabang, searchTerm]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredSiswa.length / perPage)), [filteredSiswa.length, perPage]);
+  const paginatedSiswa = useMemo(
+    () => filteredSiswa.slice((currentPage - 1) * perPage, currentPage * perPage),
+    [filteredSiswa, currentPage, perPage]
+  );
 
   const selectedCount = useMemo(() => Object.values(statusMap).filter(Boolean).length, [statusMap]);
 
@@ -193,6 +227,8 @@ export default function PresensiSiswa() {
     setKelompokKelas('');
     setSelectedCabang('');
     setStatusMap({});
+    setSearchTerm('');
+    setCurrentPage(1);
   };
 
   const handleOpenInput = () => {
@@ -598,42 +634,40 @@ export default function PresensiSiswa() {
         onClose={() => setInputOpen(false)}
         title="Input Presensi Siswa"
         size="xl"
-        contentClassName="overflow-visible"
+        contentClassName="overflow-y-auto"
       >
         <div className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tanggal</label>
-              <div className="relative">
-                <CalendarDays size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="date"
-                  value={tanggal}
-                  onChange={(e) => setTanggal(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 min-h-[120px]">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <CalendarDays size={16} className="text-gray-400" /> Tanggal
+              </label>
+              <input
+                type="date"
+                value={tanggal}
+                onChange={(e) => setTanggal(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Mata Pelajaran</label>
-              <div className="relative">
-                <BookOpen size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <div className="ml-6">
-                  <SearchableSelect
-                    value={mataPelajaran}
-                    onChange={(val) => setMataPelajaran(val)}
-                    options={mataPelajaranOptions}
-                    placeholder="Pilih Mata Pelajaran"
-                  />
-                </div>
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <BookOpen size={16} className="text-gray-400" /> Mata Pelajaran
+              </label>
+              <SearchableSelect
+                value={mataPelajaran}
+                onChange={(val) => setMataPelajaran(val)}
+                options={mataPelajaranOptions}
+                placeholder="Pilih Mata Pelajaran"
+              />
               {mataPelajaranOptions.length === 0 && (
-                <p className="text-xs text-amber-600 mt-1">Data Mata Pelajaran belum tersedia di menu Nama Pengajar.</p>
+                <p className="text-xs text-amber-600">Data Mata Pelajaran belum tersedia di menu Nama Pengajar.</p>
               )}
             </div>
             {user?.isAdmin && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Cabang</label>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <MapPin size={16} className="text-gray-400" /> Cabang
+                </label>
                 <SearchableSelect
                   value={selectedCabang}
                   onChange={(val) => {
@@ -646,8 +680,10 @@ export default function PresensiSiswa() {
                 />
               </div>
             )}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Kelompok Kelas</label>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <ClipboardCheck size={16} className="text-gray-400" /> Kelompok Kelas
+              </label>
               <SearchableSelect
                 value={kelompokKelas}
                 onChange={(val) => {
@@ -668,12 +704,31 @@ export default function PresensiSiswa() {
             </div>
           )}
 
-          {canShowTable && (
+          {canShowTable && !hasMatchingStudents && (
+            <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+              <AlertCircle size={16} />
+              Tidak ada siswa yang terdaftar pada kelompok kelas ini di cabang tersebut.
+            </div>
+          )}
+
+          {canShowTable && hasMatchingStudents && (
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm text-gray-600">
-                  Total siswa: <strong>{filteredSiswa.length}</strong> • Dicentang: <strong>{selectedCount}</strong>
-                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-sm text-gray-600">
+                    Total siswa: <strong>{filteredSiswa.length}</strong> • Dicentang: <strong>{selectedCount}</strong>
+                  </p>
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Cari nama/NIS"
+                      className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
                 <button
                   onClick={handleSubmitPresensi}
                   disabled={submitting || selectedCount === 0}
@@ -684,7 +739,7 @@ export default function PresensiSiswa() {
                 </button>
               </div>
 
-              <div className="overflow-x-auto border border-gray-200 rounded-xl">
+              <div className="max-h-[420px] overflow-auto border border-gray-200 rounded-xl">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
@@ -696,14 +751,14 @@ export default function PresensiSiswa() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredSiswa.length === 0 ? (
+                    {paginatedSiswa.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-6 text-center text-gray-400">
-                          Tidak ada siswa pada kelompok ini.
+                          Tidak ada siswa yang sesuai pencarian.
                         </td>
                       </tr>
                     ) : (
-                      filteredSiswa.map((row) => (
+                      paginatedSiswa.map((row) => (
                         <tr key={row['Nis']} className="hover:bg-blue-50/50">
                           <td className="px-4 py-3 text-gray-700 font-medium">{row['Nis']}</td>
                           <td className="px-4 py-3 text-gray-700">{row['Nama']}</td>
@@ -731,6 +786,33 @@ export default function PresensiSiswa() {
                   </tbody>
                 </table>
               </div>
+
+              {filteredSiswa.length > perPage && (
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600">
+                  <p>
+                    Menampilkan {(currentPage - 1) * perPage + 1} - {Math.min(currentPage * perPage, filteredSiswa.length)} dari {filteredSiswa.length} siswa
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-xs">Hal {currentPage} / {totalPages}</span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

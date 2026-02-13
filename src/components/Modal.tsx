@@ -26,14 +26,14 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', c
     sm: 'max-w-md',
     md: 'max-w-2xl',
     lg: 'max-w-4xl',
-    xl: 'max-w-6xl',
+    xl: 'max-w-6xl min-h-[75vh]',
   };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-10 pb-10">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative bg-white rounded-2xl shadow-2xl w-full ${sizeClasses[size]} mx-4 max-h-[90vh] flex flex-col animate-in overflow-visible`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div className={`relative bg-white rounded-2xl shadow-2xl w-full ${sizeClasses[size]} mx-4 max-h-[92vh] flex flex-col animate-in overflow-visible`}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 relative z-[105]">
           <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
           <button
             onClick={onClose}
@@ -42,7 +42,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', c
             <X size={18} className="text-gray-500" />
           </button>
         </div>
-        <div className={`${contentClassName} flex-1 px-6 py-4`}>
+        <div className={`${contentClassName} flex-1 px-6 py-4 relative z-[100] max-h-[calc(92vh-76px)]`}>
           {children}
         </div>
       </div>
