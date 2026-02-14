@@ -29,5 +29,14 @@ const fields = [
 ];
 
 export default function NamaPengajar() {
-  return <CrudPage title="Nama Pengajar" sheetKey="pengajar" fields={fields} modalSize="sm" />;
+  return (
+    <CrudPage
+      title="Nama Pengajar"
+      sheetKey="pengajar"
+      fields={fields}
+      modalSize="sm"
+      autoReplaceKeys={['Pengajar', 'Mata Pelajaran']}
+      autoFillOnMatch
+    />
+  );
 }

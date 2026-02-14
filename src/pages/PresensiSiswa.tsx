@@ -170,6 +170,37 @@ export default function PresensiSiswa() {
     setCurrentPage(1);
   }, [kelompokKelas, searchTerm, effectiveCabang]);
 
+  useEffect(() => {
+    if (!tanggal || !mataPelajaran || !kelompokKelas) {
+      setStatusMap({});
+      return;
+    }
+
+    const normalizedDate = tanggal.trim();
+    const normalizedMapel = mataPelajaran.trim().toLowerCase();
+    const normalizedKelas = kelompokKelas.trim().toLowerCase();
+    const normalizedCabang = (effectiveCabang || '').trim().toLowerCase();
+
+    const nextStatus: Record<string, string> = {};
+    presensiData.forEach((row) => {
+      const rowDate = (row['Tanggal'] || '').trim();
+      const rowMapel = (row['Mata Pelajaran'] || '').trim().toLowerCase();
+      const rowKelas = (row['Kelas'] || '').trim().toLowerCase();
+      const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
+
+      if (rowDate !== normalizedDate) return;
+      if (rowMapel !== normalizedMapel) return;
+      if (rowKelas !== normalizedKelas) return;
+      if (normalizedCabang && rowCabang !== normalizedCabang) return;
+
+      const nis = (row['Nis'] || '').trim();
+      if (!nis) return;
+      nextStatus[nis] = row['Status'] || '';
+    });
+
+    setStatusMap(nextStatus);
+  }, [tanggal, mataPelajaran, kelompokKelas, effectiveCabang, presensiData]);
+
   const hasMatchingStudents = useMemo(() => {
     if (!kelompokKelas) return false;
     return siswaData.some((row) => {
@@ -266,15 +297,63 @@ export default function PresensiSiswa() {
       return;
     }
 
+    const existingMap = new Map<string, Record<string, string>>();
+    presensiData.forEach((row) => {
+      const key = [
+        (row['Nis'] || '').trim(),
+        (row['Tanggal'] || '').trim(),
+        (row['Mata Pelajaran'] || '').trim(),
+        (row['Kelas'] || '').trim(),
+        (row['Cabang'] || '').trim(),
+      ].join('|');
+      if (key) existingMap.set(key, row);
+    });
+
+    const toUpdate: { rowIndex: number; data: Record<string, string> }[] = [];
+    const toCreate: Record<string, string>[] = [];
+
+    records.forEach((record) => {
+      const key = [
+        (record['Nis'] || '').trim(),
+        (record['Tanggal'] || '').trim(),
+        (record['Mata Pelajaran'] || '').trim(),
+        (record['Kelas'] || '').trim(),
+        (record['Cabang'] || '').trim(),
+      ].join('|');
+      const existing = existingMap.get(key);
+      if (existing && existing['_rowIndex']) {
+        const rowIndex = parseInt(existing['_rowIndex'] || '0');
+        if (rowIndex >= 2) {
+          toUpdate.push({ rowIndex, data: record });
+          return;
+        }
+      }
+      toCreate.push(record);
+    });
+
     setSubmitting(true);
-    const result = await createBulkRecords('presensi', records);
-    if (result.success) {
-      showToast('success', `✅ ${result.totalAdded || records.length} data presensi berhasil disimpan!`);
+    try {
+      const updateResults = await Promise.all(
+        toUpdate.map((item) => updateRecord('presensi', item.rowIndex, item.data))
+      );
+      const updatedCount = updateResults.filter((res) => res.success).length;
+      let createdCount = 0;
+      if (toCreate.length > 0) {
+        const createResult = await createBulkRecords('presensi', toCreate);
+        if (!createResult.success) {
+          showToast('error', createResult.message);
+          setSubmitting(false);
+          return;
+        }
+        createdCount = createResult.totalAdded || toCreate.length;
+      }
+
+      showToast('success', `✅ Presensi tersimpan. Baru: ${createdCount}, Terupdate: ${updatedCount}`);
       setInputOpen(false);
       resetInputModal();
       await loadData(true);
-    } else {
-      showToast('error', result.message);
+    } catch (error) {
+      showToast('error', `Terjadi kesalahan: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     setSubmitting(false);
   };

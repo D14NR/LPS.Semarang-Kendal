@@ -188,6 +188,62 @@ export default function PerkembanganBelajar() {
     setCurrentPage(1);
   }, [kelompokKelas, searchTerm, effectiveCabang]);
 
+  useEffect(() => {
+    if (!tanggal || !mataPelajaran || !kelompokKelas) {
+      setRowInputs({});
+      return;
+    }
+
+    const normalizedDate = tanggal.trim();
+    const normalizedMapel = mataPelajaran.trim().toLowerCase();
+    const normalizedCabang = (effectiveCabang || '').trim().toLowerCase();
+
+    const allowedNis = new Set<string>();
+    siswaData.forEach((row) => {
+      const kelasValue = (row['Kelompok Kelas'] || '').split(',').map((s) => s.trim());
+      if (!kelasValue.includes(kelompokKelas)) return;
+      if (normalizedCabang) {
+        const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
+        if (rowCabang !== normalizedCabang) return;
+      }
+      const nis = (row['Nis'] || '').trim();
+      if (nis) allowedNis.add(nis);
+    });
+
+    const nextInputs: Record<string, { Penguasaan: string; Penjelasan: string; Kondisi: string; Catatan: string }> = {};
+    let existingMateri = '';
+
+    perkembanganData.forEach((row) => {
+      const rowDate = (row['Tanggal'] || '').trim();
+      const rowMapel = (row['Mata Pelajaran'] || '').trim().toLowerCase();
+      const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
+
+      if (rowDate !== normalizedDate) return;
+      if (rowMapel !== normalizedMapel) return;
+      if (normalizedCabang && rowCabang !== normalizedCabang) return;
+
+      const nis = (row['Nis'] || '').trim();
+      if (!nis) return;
+      if (allowedNis.size > 0 && !allowedNis.has(nis)) return;
+
+      nextInputs[nis] = {
+        Penguasaan: row['Penguasaan'] || '',
+        Penjelasan: row['Penjelasan'] || '',
+        Kondisi: row['Kondisi'] || '',
+        Catatan: row['Catatan'] || '',
+      };
+
+      if (!existingMateri && (row['Materi'] || '').trim()) {
+        existingMateri = row['Materi'] || '';
+      }
+    });
+
+    setRowInputs((prev) => ({ ...prev, ...nextInputs }));
+    if (!materi && existingMateri) {
+      setMateri(existingMateri);
+    }
+  }, [tanggal, mataPelajaran, kelompokKelas, effectiveCabang, perkembanganData, materi, siswaData]);
+
   const filteredSiswa = useMemo(() => {
     if (!kelompokKelas) return [];
     const keyword = searchTerm.trim().toLowerCase();
@@ -285,15 +341,61 @@ export default function PerkembanganBelajar() {
       return;
     }
 
+    const existingMap = new Map<string, Record<string, string>>();
+    perkembanganData.forEach((row) => {
+      const key = [
+        (row['Nis'] || '').trim(),
+        (row['Tanggal'] || '').trim(),
+        (row['Mata Pelajaran'] || '').trim(),
+        (row['Cabang'] || '').trim(),
+      ].join('|');
+      if (key) existingMap.set(key, row);
+    });
+
+    const toUpdate: { rowIndex: number; data: Record<string, string> }[] = [];
+    const toCreate: Record<string, string>[] = [];
+
+    records.forEach((record) => {
+      const key = [
+        (record['Nis'] || '').trim(),
+        (record['Tanggal'] || '').trim(),
+        (record['Mata Pelajaran'] || '').trim(),
+        (record['Cabang'] || '').trim(),
+      ].join('|');
+      const existing = existingMap.get(key);
+      if (existing && existing['_rowIndex']) {
+        const rowIndex = parseInt(existing['_rowIndex'] || '0');
+        if (rowIndex >= 2) {
+          toUpdate.push({ rowIndex, data: record });
+          return;
+        }
+      }
+      toCreate.push(record);
+    });
+
     setSubmitting(true);
-    const result = await createBulkRecords('perkembangan', records);
-    if (result.success) {
-      showToast('success', `✅ ${result.totalAdded || records.length} data perkembangan berhasil disimpan!`);
+    try {
+      const updateResults = await Promise.all(
+        toUpdate.map((item) => updateRecord('perkembangan', item.rowIndex, item.data))
+      );
+      const updatedCount = updateResults.filter((res) => res.success).length;
+      let createdCount = 0;
+      if (toCreate.length > 0) {
+        const createResult = await createBulkRecords('perkembangan', toCreate);
+        if (!createResult.success) {
+          showToast('error', createResult.message);
+          setSubmitting(false);
+          return;
+        }
+        createdCount = createResult.totalAdded || toCreate.length;
+      }
+
+      showToast('success', `✅ Perkembangan tersimpan. Baru: ${createdCount}, Terupdate: ${updatedCount}`);
       setInputOpen(false);
       resetInputModal();
       await loadData(true);
-    } else {
-      showToast('error', result.message);
+    } catch (error) {
+      showToast('error', `Terjadi kesalahan: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     setSubmitting(false);
   };

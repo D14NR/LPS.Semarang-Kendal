@@ -20,5 +20,14 @@ const fields = [
 ];
 
 export default function NilaiTkaSd() {
-  return <CrudPage title="Nilai TKA SD" sheetKey="nilaiTkaSd" fields={fields} modalSize="lg" />;
+  return (
+    <CrudPage
+      title="Nilai TKA SD"
+      sheetKey="nilaiTkaSd"
+      fields={fields}
+      modalSize="lg"
+      autoReplaceKeys={['Nis', 'Tanggal', 'Jenis Tes', 'Cabang']}
+      autoFillOnMatch
+    />
+  );
 }

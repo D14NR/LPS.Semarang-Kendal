@@ -77,5 +77,13 @@ const filters = [
 ];
 
 export default function DataSiswa() {
-  return <CrudPage title="Data Siswa" sheetKey="siswa" fields={fields} filters={filters} />;
+  return (
+    <CrudPage
+      title="Data Siswa"
+      sheetKey="siswa"
+      fields={fields}
+      filters={filters}
+      autoReplaceKeys={['Nis']}
+    />
+  );
 }

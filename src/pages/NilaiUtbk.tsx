@@ -20,5 +20,14 @@ const fields = [
 ];
 
 export default function NilaiUtbk() {
-  return <CrudPage title="Nilai UTBK" sheetKey="nilaiUtbk" fields={fields} modalSize="lg" />;
+  return (
+    <CrudPage
+      title="Nilai UTBK"
+      sheetKey="nilaiUtbk"
+      fields={fields}
+      modalSize="lg"
+      autoReplaceKeys={['Nis', 'Tanggal', 'Jenis Tes', 'Cabang']}
+      autoFillOnMatch
+    />
+  );
 }

@@ -194,6 +194,52 @@ export default function PelayananJamTambahan() {
     setCurrentPage(1);
   }, [jenjang, searchTerm, effectiveCabang]);
 
+  useEffect(() => {
+    if (!tanggal || !mataPelajaran || !pengajar || !jenjang) {
+      setSelectedSiswa({});
+      return;
+    }
+
+    const normalizedDate = tanggal.trim();
+    const normalizedMapel = mataPelajaran.trim().toLowerCase();
+    const normalizedPengajar = pengajar.trim().toLowerCase();
+    const normalizedCabang = (effectiveCabang || '').trim().toLowerCase();
+
+    const allowedNis = new Set<string>();
+    siswaData.forEach((row) => {
+      const rowJenjang = (row['Jenjang Studi'] || '').trim().toLowerCase();
+      if (rowJenjang !== jenjang.toLowerCase()) return;
+      if (normalizedCabang) {
+        const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
+        if (rowCabang !== normalizedCabang) return;
+      }
+      const nis = (row['Nis'] || '').trim();
+      if (nis) allowedNis.add(nis);
+    });
+
+    const nextSelected: Record<string, boolean> = {};
+    pelayananData.forEach((row) => {
+      const rowDate = (row['Tanggal'] || '').trim();
+      const rowMapel = (row['Mata Pelajaran'] || '').trim().toLowerCase();
+      const rowPengajar = (row['Pengajar'] || '').trim().toLowerCase();
+      const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
+
+      if (rowDate !== normalizedDate) return;
+      if (rowMapel !== normalizedMapel) return;
+      if (rowPengajar !== normalizedPengajar) return;
+      if (normalizedCabang && rowCabang !== normalizedCabang) return;
+
+      const nis = (row['Nis'] || '').trim();
+      if (!nis) return;
+      if (allowedNis.size > 0 && !allowedNis.has(nis)) return;
+      nextSelected[nis] = true;
+    });
+
+    if (Object.keys(nextSelected).length > 0) {
+      setSelectedSiswa((prev) => ({ ...prev, ...nextSelected }));
+    }
+  }, [tanggal, mataPelajaran, pengajar, jenjang, effectiveCabang, pelayananData, siswaData]);
+
   const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredSiswa.length / perPage)), [filteredSiswa.length, perPage]);
   const paginatedSiswa = useMemo(
     () => filteredSiswa.slice((currentPage - 1) * perPage, currentPage * perPage),
@@ -256,15 +302,63 @@ export default function PelayananJamTambahan() {
       return;
     }
 
+    const existingMap = new Map<string, Record<string, string>>();
+    pelayananData.forEach((row) => {
+      const key = [
+        (row['Nis'] || '').trim(),
+        (row['Tanggal'] || '').trim(),
+        (row['Mata Pelajaran'] || '').trim(),
+        (row['Pengajar'] || '').trim(),
+        (row['Cabang'] || '').trim(),
+      ].join('|');
+      if (key) existingMap.set(key, row);
+    });
+
+    const toUpdate: { rowIndex: number; data: Record<string, string> }[] = [];
+    const toCreate: Record<string, string>[] = [];
+
+    records.forEach((record) => {
+      const key = [
+        (record['Nis'] || '').trim(),
+        (record['Tanggal'] || '').trim(),
+        (record['Mata Pelajaran'] || '').trim(),
+        (record['Pengajar'] || '').trim(),
+        (record['Cabang'] || '').trim(),
+      ].join('|');
+      const existing = existingMap.get(key);
+      if (existing && existing['_rowIndex']) {
+        const rowIndex = parseInt(existing['_rowIndex'] || '0');
+        if (rowIndex >= 2) {
+          toUpdate.push({ rowIndex, data: record });
+          return;
+        }
+      }
+      toCreate.push(record);
+    });
+
     setSubmitting(true);
-    const result = await createBulkRecords('pelayanan', records);
-    if (result.success) {
-      showToast('success', `✅ ${result.totalAdded || records.length} data pelayanan berhasil disimpan!`);
+    try {
+      const updateResults = await Promise.all(
+        toUpdate.map((item) => updateRecord('pelayanan', item.rowIndex, item.data))
+      );
+      const updatedCount = updateResults.filter((res) => res.success).length;
+      let createdCount = 0;
+      if (toCreate.length > 0) {
+        const createResult = await createBulkRecords('pelayanan', toCreate);
+        if (!createResult.success) {
+          showToast('error', createResult.message);
+          setSubmitting(false);
+          return;
+        }
+        createdCount = createResult.totalAdded || toCreate.length;
+      }
+
+      showToast('success', `✅ Pelayanan tersimpan. Baru: ${createdCount}, Terupdate: ${updatedCount}`);
       setInputOpen(false);
       resetInputModal();
       await loadData(true);
-    } else {
-      showToast('error', result.message);
+    } catch (error) {
+      showToast('error', `Terjadi kesalahan: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     setSubmitting(false);
   };

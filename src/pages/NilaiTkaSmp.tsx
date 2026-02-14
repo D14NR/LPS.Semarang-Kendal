@@ -20,5 +20,14 @@ const fields = [
 ];
 
 export default function NilaiTkaSmp() {
-  return <CrudPage title="Nilai TKA SMP" sheetKey="nilaiTkaSmp" fields={fields} modalSize="lg" />;
+  return (
+    <CrudPage
+      title="Nilai TKA SMP"
+      sheetKey="nilaiTkaSmp"
+      fields={fields}
+      modalSize="lg"
+      autoReplaceKeys={['Nis', 'Tanggal', 'Jenis Tes', 'Cabang']}
+      autoFillOnMatch
+    />
+  );
 }

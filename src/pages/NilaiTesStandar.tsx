@@ -22,5 +22,14 @@ const fields = [
 ];
 
 export default function NilaiTesStandar() {
-  return <CrudPage title="Nilai Tes Standar" sheetKey="nilaiTesStandar" fields={fields} modalSize="xl" />;
+  return (
+    <CrudPage
+      title="Nilai Tes Standar"
+      sheetKey="nilaiTesStandar"
+      fields={fields}
+      modalSize="xl"
+      autoReplaceKeys={['Nis', 'Tanggal', 'Jenis Tes', 'Cabang']}
+      autoFillOnMatch
+    />
+  );
 }

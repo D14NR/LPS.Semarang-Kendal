@@ -22,5 +22,14 @@ const fields = [
 ];
 
 export default function NilaiEvaluasi() {
-  return <CrudPage title="Nilai Evaluasi" sheetKey="nilaiEvaluasi" fields={fields} modalSize="xl" />;
+  return (
+    <CrudPage
+      title="Nilai Evaluasi"
+      sheetKey="nilaiEvaluasi"
+      fields={fields}
+      modalSize="xl"
+      autoReplaceKeys={['Nis', 'Tanggal', 'Jenis Tes', 'Cabang']}
+      autoFillOnMatch
+    />
+  );
 }

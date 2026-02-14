@@ -48,6 +48,8 @@ interface CrudPageProps {
   modalSize?: 'sm' | 'md' | 'lg' | 'xl';
   cabangField?: string;
   filters?: FilterConfig[];
+  autoReplaceKeys?: string[];
+  autoFillOnMatch?: boolean;
 }
 
 type ToastType = 'success' | 'error' | 'warning';
@@ -385,7 +387,7 @@ function MultiSelectCheckbox({
 
 // ===================== CrudPage Component =====================
 
-export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', cabangField = 'Cabang', filters = [] }: CrudPageProps) {
+export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', cabangField = 'Cabang', filters = [], autoReplaceKeys = [], autoFillOnMatch = false }: CrudPageProps) {
   const [data, setData] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -718,6 +720,32 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     loadAsyncOptions();
   };
 
+  const handleAutoFillOnMatch = useCallback((nextFormData: Record<string, string>) => {
+    if (!autoFillOnMatch || !autoReplaceKeys.length) return;
+
+    const match = data.find((row) =>
+      autoReplaceKeys.every((key) =>
+        String(row[key] || '').trim().toLowerCase() ===
+          String(nextFormData[key] || '').trim().toLowerCase()
+      )
+    );
+
+    if (!match) return;
+
+    const filled: Record<string, string> = { ...nextFormData };
+    fields.forEach((field) => {
+      if (field.type === 'date') {
+        const dateValue = formatDateValue(match, field.key, match[field.key]);
+        const parsed = parseDateValue(dateValue) || parseDateValue(match[field.key] || '');
+        filled[field.key] = parsed ? parsed.toISOString().slice(0, 10) : '';
+      } else {
+        filled[field.key] = match[field.key] || '';
+      }
+    });
+    setFormData(filled);
+    showToast('warning', 'Data sudah ada. Form otomatis terisi untuk pembaruan.');
+  }, [autoFillOnMatch, autoReplaceKeys, data, fields]);
+
   const openEditModal = (row: Record<string, string>) => {
     if (!isAppsScriptConfigured()) {
       showToast('warning', 'Apps Script belum dikonfigurasi. Buka Pengaturan.');
@@ -765,6 +793,30 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
           showToast('error', result.message);
         }
       } else {
+        if (autoReplaceKeys.length > 0) {
+          const match = data.find((row) =>
+            autoReplaceKeys.every((key) =>
+              String(row[key] || '').trim().toLowerCase() ===
+                String(formData[key] || '').trim().toLowerCase()
+            )
+          );
+          if (match && match['_rowIndex']) {
+            const rowIndex = parseInt(match['_rowIndex'] || '0');
+            if (rowIndex >= 2) {
+              const result = await updateRecord(sheetKey, rowIndex, formData);
+              if (result.success) {
+                showToast('success', '✅ Data sudah ada, diperbarui otomatis!');
+                setModalOpen(false);
+                await loadData(true);
+              } else {
+                showToast('error', result.message);
+              }
+              setSubmitting(false);
+              return;
+            }
+          }
+        }
+
         const result = await createRecord(sheetKey, formData);
         if (result.success) {
           showToast('success', '✅ Data berhasil ditambahkan!');
@@ -838,6 +890,11 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
   const formFields = fields.filter((f) => !f.hideInForm);
   const apiConfigured = isAppsScriptConfigured();
   const isFiltered = user && !user.isAdmin && sheetKey !== 'pengajar';
+
+  useEffect(() => {
+    if (!modalOpen || editingRecord) return;
+    handleAutoFillOnMatch(formData);
+  }, [formData, modalOpen, editingRecord, handleAutoFillOnMatch]);
 
   const handleAddOption = async (field: FieldConfig, newValueParam?: string) => {
     if (!field.canCreateOption) return;
