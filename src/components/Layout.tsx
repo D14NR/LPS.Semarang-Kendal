@@ -313,7 +313,7 @@ export default function Layout({ children }: LayoutProps) {
             )}
           </div>
           {!sidebarCollapsed && (
-            <p className="text-xs text-slate-600 mt-1">© 2024 Laporan Pekembangan Siswa (LPS) Smrg-Kndl</p>
+            <p className="text-xs text-slate-600 mt-1">© 2026 Laporan Pekembangan Siswa (LPS) Smrg-Kndl by D14nr</p>
           )}
         </div>
       </aside>
