@@ -297,7 +297,11 @@ function handleCreate(sheetKey, data) {
   // Buat array row sesuai urutan header
   var newRow = [];
   for (var i = 0; i < headers.length; i++) {
-    newRow.push(data[headers[i]] !== undefined && data[headers[i]] !== null ? data[headers[i]] : '');
+    var value = data[headers[i]] !== undefined && data[headers[i]] !== null ? data[headers[i]] : '';
+    if (typeof value === 'string') {
+      value = value.trim();
+    }
+    newRow.push(value);
   }
   
   // Append row
@@ -343,7 +347,11 @@ function handleUpdate(sheetKey, rowIndex, data) {
   // Buat array row sesuai urutan header
   var updatedRow = [];
   for (var i = 0; i < headers.length; i++) {
-    updatedRow.push(data[headers[i]] !== undefined && data[headers[i]] !== null ? data[headers[i]] : '');
+    var value = data[headers[i]] !== undefined && data[headers[i]] !== null ? data[headers[i]] : '';
+    if (typeof value === 'string') {
+      value = value.trim();
+    }
+    updatedRow.push(value);
   }
   
   // Update row
@@ -410,7 +418,11 @@ function handleBulkCreate(sheetKey, dataArray) {
     data['Timestamp'] = timestamp;
     var row = [];
     for (var i = 0; i < headers.length; i++) {
-      row.push(data[headers[i]] !== undefined && data[headers[i]] !== null ? data[headers[i]] : '');
+          var value = data[headers[i]] !== undefined && data[headers[i]] !== null ? data[headers[i]] : '';
+    if (typeof value === 'string') {
+      value = value.trim();
+    }
+    row.push(value);
     }
     rows.push(row);
   }

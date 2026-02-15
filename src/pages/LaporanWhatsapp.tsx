@@ -238,6 +238,130 @@ export default function LaporanWhatsapp() {
       });
   }, [pelayananData, selectedStudentData, dateRange]);
 
+  const weekAbsenceList = useMemo(() => {
+    const now = new Date();
+    const weekAgo = new Date();
+    weekAgo.setDate(now.getDate() - 7);
+
+    const statusMap: Record<string, string> = {
+      h: 'Hadir',
+      hadir: 'Hadir',
+      i: 'Izin',
+      izin: 'Izin',
+      s: 'Sakit',
+      sakit: 'Sakit',
+      a: 'Alpha',
+      alpha: 'Alpha',
+    };
+
+    const absensiMap = new Map<
+      string,
+      {
+        nis: string;
+        name: string;
+        cabang: string;
+        counts: Record<string, number>;
+        dates: string[];
+        lastDate: Date | null;
+        phone: string;
+        parentPhone: string;
+      }
+    >();
+
+    const cabangFilter = user?.isAdmin ? selectedCabang : user?.cabang || '';
+
+    presensiData.forEach((row) => {
+      const parsed = parseDateValue(row['Tanggal'] || '');
+      if (!parsed || parsed < weekAgo || parsed > now) return;
+
+      const rawStatus = (row['Status'] || '').trim();
+      const normalizedStatus = statusMap[rawStatus.toLowerCase()] || rawStatus;
+      if (!normalizedStatus || normalizedStatus === 'Hadir') return;
+
+      const nis = (row['Nis'] || '').trim();
+      if (!nis) return;
+
+      const siswa = siswaData.find((item) => (item['Nis'] || '').trim() === nis);
+      if (!siswa) return;
+
+      const cabang = (siswa['Cabang'] || '').trim();
+      if (cabangFilter && cabang.toLowerCase() !== cabangFilter.toLowerCase()) return;
+
+      if (!absensiMap.has(nis)) {
+        const parentRaw =
+          siswa['No.whatsapp orang tua'] ||
+          siswa['No. whatsapp orang tua'] ||
+          siswa['No Whatsapp Orang Tua'] ||
+          '';
+        const studentRaw =
+          siswa['No.whatsapp siswa'] ||
+          siswa['No. whatsapp siswa'] ||
+          siswa['No Whatsapp Siswa'] ||
+          siswa['Tlpn'] ||
+          siswa['Telepon'] ||
+          '';
+        absensiMap.set(nis, {
+          nis,
+          name: siswa['Nama'] || '-',
+          cabang: cabang || '-',
+          counts: { Izin: 0, Sakit: 0, Alpha: 0 },
+          dates: [],
+          lastDate: null,
+          phone: normalizePhone(studentRaw),
+          parentPhone: normalizePhone(parentRaw),
+        });
+      }
+
+      const entry = absensiMap.get(nis)!;
+      if (!entry.counts[normalizedStatus]) {
+        entry.counts[normalizedStatus] = 0;
+      }
+      entry.counts[normalizedStatus] += 1;
+      const formattedDate = formatDate(row['Tanggal'] || '');
+      entry.dates.push(`${formattedDate} (${normalizedStatus})`);
+      if (!entry.lastDate || parsed > entry.lastDate) {
+        entry.lastDate = parsed;
+      }
+    });
+
+    return Array.from(absensiMap.values()).sort((a, b) => {
+      const da = a.lastDate ? a.lastDate.getTime() : 0;
+      const db = b.lastDate ? b.lastDate.getTime() : 0;
+      return db - da;
+    });
+  }, [presensiData, siswaData, user, selectedCabang]);
+
+  const buildAbsensiMessage = (item: {
+    name: string;
+    nis: string;
+    cabang: string;
+    dates: string[];
+    counts: Record<string, number>;
+  }) => {
+    const header = '📌 *LAPORAN KETIDAKHADIRAN 7 HARI TERAKHIR*\n';
+    const info = `Nama: ${item.name}\nNIS: ${item.nis}\nCabang: ${item.cabang}\n\n`;
+    const summary = `Ringkasan:\n• Izin: ${item.counts.Izin || 0}\n• Sakit: ${item.counts.Sakit || 0}\n• Alpha: ${item.counts.Alpha || 0}\n\n`;
+    const details = item.dates.length ? `Tanggal: \n${item.dates.map((d) => `• ${d}`).join('\n')}\n\n` : '';
+    return `${header}${info}${summary}${details}Terima kasih atas perhatiannya.`;
+  };
+
+  const handleSendAbsensi = (item: {
+    parentPhone: string;
+    phone: string;
+    name: string;
+    nis: string;
+    cabang: string;
+    dates: string[];
+    counts: Record<string, number>;
+    lastDate: Date | null;
+  }) => {
+    const phone = item.parentPhone || item.phone;
+    if (!phone) return;
+    const message = buildAbsensiMessage(item);
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
   const lastPerkembangan = perkembanganFiltered[0];
   const totalCatatan = perkembanganFiltered.length;
   const totalNilaiCount =
@@ -656,6 +780,66 @@ export default function LaporanWhatsapp() {
           </div>
         </div>
       )}
+
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-4">
+          <AlertCircle size={18} className="text-red-500" />
+          <h2 className="text-lg font-semibold text-gray-800">Siswa Tidak Hadir 7 Hari Terakhir</h2>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Menampilkan siswa dengan status Izin, Sakit, atau Alpha dalam 7 hari terakhir. Klik tombol WhatsApp untuk menghubungi orang tua.
+        </p>
+        {weekAbsenceList.length === 0 ? (
+          <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-500">
+            Tidak ada siswa yang tercatat tidak hadir dalam 7 hari terakhir.
+          </div>
+        ) : (
+          <div className="overflow-x-auto border border-gray-200 rounded-xl">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-xs text-gray-500">
+                <tr>
+                  <th className="px-3 py-3 text-left">Siswa</th>
+                  <th className="px-3 py-3 text-left">Cabang</th>
+                  <th className="px-3 py-3 text-left">Ringkasan</th>
+                  <th className="px-3 py-3 text-left">Tanggal Terakhir</th>
+                  <th className="px-3 py-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {weekAbsenceList.map((item) => (
+                  <tr key={item.nis} className="hover:bg-gray-50">
+                    <td className="px-3 py-3 text-gray-700">
+                      <p className="font-semibold">{item.name}</p>
+                      <p className="text-xs text-gray-400">NIS: {item.nis}</p>
+                    </td>
+                    <td className="px-3 py-3 text-gray-600">{item.cabang}</td>
+                    <td className="px-3 py-3 text-gray-600">
+                      Izin: {item.counts.Izin || 0} • Sakit: {item.counts.Sakit || 0} • Alpha: {item.counts.Alpha || 0}
+                    </td>
+                    <td className="px-3 py-3 text-gray-600">
+                      {item.lastDate ? formatDate(item.lastDate.toISOString()) : '-'}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => handleSendAbsensi(item)}
+                        disabled={!item.parentPhone && !item.phone}
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        <Send size={14} />
+                        WhatsApp
+                      </button>
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        {item.parentPhone ? 'Ke WA Orang Tua' : 'Ke WA Siswa'}
+                      </p>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -323,6 +323,14 @@ async function fetchCSVData(key: SheetKey): Promise<Record<string, string>[]> {
     if (rows.length < 1) return [];
 
     const headers = rows[0].map(h => normalizeKey(h.replace(/^"|"$/g, '')));
+
+    const headerLength = headers.length;
+    const hasInvalidRows = rows.slice(1).some((row) => row.length > headerLength);
+    if (hasInvalidRows) {
+      console.warn(`CSV column mismatch for ${key}. Falling back to Apps Script.`);
+      return [];
+    }
+
     const normalizedHeaderMap: Record<string, string> = {};
     headers.forEach((header) => {
       normalizedHeaderMap[normalizeKey(header).toLowerCase()] = header;
