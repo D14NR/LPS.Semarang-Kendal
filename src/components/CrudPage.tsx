@@ -626,8 +626,13 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     setImportOpen(true);
   };
 
+  const templateFields = useMemo(
+    () => (user && !user.isAdmin ? fields.filter((field) => field.key !== cabangField) : fields),
+    [fields, user, cabangField]
+  );
+
   const handleTemplateDownload = () => {
-    const blob = generateTemplateWorkbook(fields, `Template_${title}`);
+    const blob = generateTemplateWorkbook(templateFields, `Template_${title}`);
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
@@ -662,9 +667,17 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
       return;
     }
     setImportLoading(true);
-    const result = await createBulkRecords(sheetKey, importRecords);
+
+    const recordsToImport = user && !user.isAdmin && cabangField
+      ? importRecords.map((record) => ({
+          ...record,
+          [cabangField]: user.cabang || record[cabangField] || '',
+        }))
+      : importRecords;
+
+    const result = await createBulkRecords(sheetKey, recordsToImport);
     if (result.success) {
-      showToast('success', `✅ ${result.totalAdded || importRecords.length} data berhasil diimport!`);
+      showToast('success', `✅ ${result.totalAdded || recordsToImport.length} data berhasil diimport!`);
       setImportOpen(false);
       setImportRecords([]);
       setImportPreview([]);

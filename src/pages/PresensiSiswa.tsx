@@ -25,6 +25,9 @@ const importFields = [
   { key: 'Status', label: 'Status' },
   { key: 'Cabang', label: 'Cabang' },
 ];
+
+const getTemplateFields = (isAdmin: boolean) =>
+  (isAdmin ? importFields : importFields.filter((field) => field.key !== 'Cabang'));
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -370,7 +373,7 @@ export default function PresensiSiswa() {
   };
 
   const handleTemplateDownload = () => {
-    const blob = generateTemplateWorkbook(importFields, 'Template Presensi');
+    const blob = generateTemplateWorkbook(getTemplateFields(!!user?.isAdmin), 'Template Presensi');
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
@@ -405,9 +408,17 @@ export default function PresensiSiswa() {
       return;
     }
     setImportLoading(true);
-    const result = await createBulkRecords('presensi', importRecords);
+
+    const recordsToImport = user && !user.isAdmin
+      ? importRecords.map((record) => ({
+          ...record,
+          Cabang: user.cabang || record.Cabang || '',
+        }))
+      : importRecords;
+
+    const result = await createBulkRecords('presensi', recordsToImport);
     if (result.success) {
-      showToast('success', `✅ ${result.totalAdded || importRecords.length} data berhasil diimport!`);
+      showToast('success', `✅ ${result.totalAdded || recordsToImport.length} data berhasil diimport!`);
       setImportOpen(false);
       setImportRecords([]);
       setImportPreview([]);

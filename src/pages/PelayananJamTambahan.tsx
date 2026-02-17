@@ -41,6 +41,9 @@ const importFields = [
   { key: 'Cabang', label: 'Cabang' },
 ];
 
+const getTemplateFields = (isAdmin: boolean) =>
+  (isAdmin ? importFields : importFields.filter((field) => field.key !== 'Cabang'));
+
 const formatDateDisplay = (value: string): string => {
   if (!value) return '-';
   const parsed = new Date(value);
@@ -375,7 +378,7 @@ export default function PelayananJamTambahan() {
   };
 
   const handleTemplateDownload = () => {
-    const blob = generateTemplateWorkbook(importFields, 'Template Pelayanan');
+    const blob = generateTemplateWorkbook(getTemplateFields(!!user?.isAdmin), 'Template Pelayanan');
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
@@ -410,9 +413,17 @@ export default function PelayananJamTambahan() {
       return;
     }
     setImportLoading(true);
-    const result = await createBulkRecords('pelayanan', importRecords);
+
+    const recordsToImport = user && !user.isAdmin
+      ? importRecords.map((record) => ({
+          ...record,
+          Cabang: user.cabang || record.Cabang || '',
+        }))
+      : importRecords;
+
+    const result = await createBulkRecords('pelayanan', recordsToImport);
     if (result.success) {
-      showToast('success', `✅ ${result.totalAdded || importRecords.length} data berhasil diimport!`);
+      showToast('success', `✅ ${result.totalAdded || recordsToImport.length} data berhasil diimport!`);
       setImportOpen(false);
       setImportRecords([]);
       setImportPreview([]);
