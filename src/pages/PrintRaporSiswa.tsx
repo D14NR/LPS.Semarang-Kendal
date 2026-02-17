@@ -596,7 +596,7 @@ export default function PrintRaporSiswa() {
           <section className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm print-page print-reset-shadow">
             <div className="flex flex-col items-center text-center gap-4 mb-6">
               <img
-                src="https://career.amikom.ac.id/images/company/cover/1720853154.png"
+                src=""
                 alt="Logo"
                 className="h-16 w-auto"
               />
