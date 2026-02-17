@@ -594,12 +594,7 @@ export default function PrintRaporSiswa() {
         <div className={`space-y-6 print-area ${isPrinting ? 'print-mode' : ''}`}>
           {/* Biodata + Header */}
           <section className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm print-page print-reset-shadow">
-            <div className="flex flex-col items-center text-center gap-4 mb-6">
-              <img
-                src=""
-                alt="Logo"
-                className="h-16 w-auto"
-              />
+            <div className="flex flex-col items-center text-center gap-3 mb-6">
               <div>
                 <h2 className="text-xl font-bold text-gray-900 tracking-wide">
                   LAPORAN PERKEMBANGAN BELAJAR SISWA
