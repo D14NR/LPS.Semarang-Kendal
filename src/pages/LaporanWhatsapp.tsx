@@ -240,8 +240,12 @@ export default function LaporanWhatsapp() {
 
   const weekAbsenceList = useMemo(() => {
     const now = new Date();
-    const weekAgo = new Date();
-    weekAgo.setDate(now.getDate() - 7);
+    const yesterdayStart = new Date(now);
+    yesterdayStart.setDate(now.getDate() - 1);
+    yesterdayStart.setHours(0, 0, 0, 0);
+    const yesterdayEnd = new Date(now);
+    yesterdayEnd.setDate(now.getDate() - 1);
+    yesterdayEnd.setHours(23, 59, 59, 999);
 
     const statusMap: Record<string, string> = {
       h: 'Hadir',
@@ -272,7 +276,7 @@ export default function LaporanWhatsapp() {
 
     presensiData.forEach((row) => {
       const parsed = parseDateValue(row['Tanggal'] || '');
-      if (!parsed || parsed < weekAgo || parsed > now) return;
+      if (!parsed || parsed < yesterdayStart || parsed > yesterdayEnd) return;
 
       const rawStatus = (row['Status'] || '').trim();
       const normalizedStatus = statusMap[rawStatus.toLowerCase()] || rawStatus;
@@ -338,7 +342,7 @@ export default function LaporanWhatsapp() {
     dates: string[];
     counts: Record<string, number>;
   }) => {
-    const header = '📌 *LAPORAN KETIDAKHADIRAN 7 HARI TERAKHIR*\n';
+    const header = '📌 *LAPORAN KETIDAKHADIRAN KEMARIN*\n';
     const info = `Nama: ${item.name}\nNIS: ${item.nis}\nCabang: ${item.cabang}\n\n`;
     const summary = `Ringkasan:\n• Izin: ${item.counts.Izin || 0}\n• Sakit: ${item.counts.Sakit || 0}\n• Alpha: ${item.counts.Alpha || 0}\n\n`;
     const details = item.dates.length ? `Tanggal: \n${item.dates.map((d) => `• ${d}`).join('\n')}\n\n` : '';
@@ -784,14 +788,14 @@ export default function LaporanWhatsapp() {
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <AlertCircle size={18} className="text-red-500" />
-          <h2 className="text-lg font-semibold text-gray-800">Siswa Tidak Hadir 7 Hari Terakhir</h2>
+          <h2 className="text-lg font-semibold text-gray-800">Siswa Tidak Hadir Kemarin</h2>
         </div>
         <p className="text-sm text-gray-500 mb-4">
-          Menampilkan siswa dengan status Izin, Sakit, atau Alpha dalam 7 hari terakhir. Klik tombol WhatsApp untuk menghubungi orang tua.
+          Menampilkan siswa dengan status Izin, Sakit, atau Alpha pada hari kemarin. Klik tombol WhatsApp untuk menghubungi orang tua.
         </p>
         {weekAbsenceList.length === 0 ? (
           <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-500">
-            Tidak ada siswa yang tercatat tidak hadir dalam 7 hari terakhir.
+            Tidak ada siswa yang tercatat tidak hadir pada hari kemarin.
           </div>
         ) : (
           <div className="overflow-x-auto border border-gray-200 rounded-xl">
