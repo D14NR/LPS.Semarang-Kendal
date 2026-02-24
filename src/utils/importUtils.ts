@@ -61,13 +61,35 @@ export async function parseSpreadsheetFile(file: File, fields: ImportField[]): P
 
       const fieldMap = new Map<string, string>();
   const fieldTypeMap = new Map<string, ImportField['type']>();
+  const normalizedFields = fields.map((field) => ({
+    key: field.key,
+    label: field.label,
+    normalizedKey: normalizeHeader(field.key),
+    normalizedLabel: normalizeHeader(field.label),
+  }));
+
   fields.forEach((field) => {
     fieldMap.set(normalizeHeader(field.key), field.key);
     fieldMap.set(normalizeHeader(field.label), field.key);
     fieldTypeMap.set(field.key, field.type);
   });
 
-  const headerKeys = headers.map((header) => fieldMap.get(normalizeHeader(header)) || '');
+  const resolveHeaderKey = (header: string) => {
+    const normalizedHeader = normalizeHeader(header);
+    const direct = fieldMap.get(normalizedHeader);
+    if (direct) return direct;
+
+    const partial = normalizedFields.find(
+      (field) =>
+        normalizedHeader.includes(field.normalizedKey) ||
+        normalizedHeader.includes(field.normalizedLabel) ||
+        field.normalizedKey.includes(normalizedHeader) ||
+        field.normalizedLabel.includes(normalizedHeader)
+    );
+    return partial?.key || '';
+  };
+
+  const headerKeys = headers.map((header) => resolveHeaderKey(header));
 
   const records: Record<string, string>[] = [];
 

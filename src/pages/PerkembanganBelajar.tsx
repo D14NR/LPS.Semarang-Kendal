@@ -95,6 +95,7 @@ export default function PerkembanganBelajar() {
   const [siswaData, setSiswaData] = useState<Record<string, string>[]>([]);
   const [perkembanganData, setPerkembanganData] = useState<Record<string, string>[]>([]);
   const [pengajarData, setPengajarData] = useState<Record<string, string>[]>([]);
+  const [presensiData, setPresensiData] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -132,14 +133,16 @@ export default function PerkembanganBelajar() {
     if (forceRefresh) setRefreshing(true);
     setLoading(true);
     try {
-      const [siswa, perkembangan, pengajar] = await Promise.all([
+      const [siswa, perkembangan, pengajar, presensi] = await Promise.all([
         fetchAllData('siswa', forceRefresh),
         fetchAllData('perkembangan', forceRefresh),
         fetchAllData('pengajar', forceRefresh),
+        fetchAllData('presensi', forceRefresh),
       ]);
       setSiswaData(siswa);
       setPerkembanganData(perkembangan);
       setPengajarData(pengajar);
+      setPresensiData(presensi);
     } catch {
       showToast('error', 'Gagal memuat data');
     }
@@ -344,6 +347,19 @@ export default function PerkembanganBelajar() {
       return;
     }
 
+    const presensiPayload = records.map((record) => {
+      const siswa = siswaData.find((row) => (row['Nis'] || '').trim() === (record['Nis'] || '').trim());
+      return {
+        Nis: record['Nis'] || '',
+        Nama: record['Nama'] || '',
+        Tanggal: record['Tanggal'] || '',
+        Kelas: kelompokKelas || siswa?.['Kelompok Kelas'] || '',
+        'Mata Pelajaran': mataPelajaran,
+        Status: 'Hadir',
+        Cabang: record['Cabang'] || siswa?.['Cabang'] || '',
+      };
+    });
+
     const existingMap = new Map<string, Record<string, string>>();
     perkembanganData.forEach((row) => {
       const key = [
@@ -376,6 +392,40 @@ export default function PerkembanganBelajar() {
       toCreate.push(record);
     });
 
+    const presensiExistingMap = new Map<string, Record<string, string>>();
+    presensiData.forEach((row) => {
+      const key = [
+        (row['Nis'] || '').trim(),
+        (row['Tanggal'] || '').trim(),
+        (row['Mata Pelajaran'] || '').trim(),
+        (row['Kelas'] || '').trim(),
+        (row['Cabang'] || '').trim(),
+      ].join('|');
+      if (key) presensiExistingMap.set(key, row);
+    });
+
+    const presensiToUpdate: { rowIndex: number; data: Record<string, string> }[] = [];
+    const presensiToCreate: Record<string, string>[] = [];
+
+    presensiPayload.forEach((record) => {
+      const key = [
+        (record['Nis'] || '').trim(),
+        (record['Tanggal'] || '').trim(),
+        (record['Mata Pelajaran'] || '').trim(),
+        (record['Kelas'] || '').trim(),
+        (record['Cabang'] || '').trim(),
+      ].join('|');
+      const existing = presensiExistingMap.get(key);
+      if (existing && existing['_rowIndex']) {
+        const rowIndex = parseInt(existing['_rowIndex'] || '0');
+        if (rowIndex >= 2) {
+          presensiToUpdate.push({ rowIndex, data: { ...record, Status: existing['Status'] || 'Hadir' } });
+          return;
+        }
+      }
+      presensiToCreate.push(record);
+    });
+
     setSubmitting(true);
     try {
       const updateResults = await Promise.all(
@@ -393,7 +443,25 @@ export default function PerkembanganBelajar() {
         createdCount = createResult.totalAdded || toCreate.length;
       }
 
-      showToast('success', `✅ Perkembangan tersimpan. Baru: ${createdCount}, Terupdate: ${updatedCount}`);
+      const presensiUpdateResults = await Promise.all(
+        presensiToUpdate.map((item) => updateRecord('presensi', item.rowIndex, item.data))
+      );
+      const presensiUpdatedCount = presensiUpdateResults.filter((res) => res.success).length;
+      let presensiCreatedCount = 0;
+      if (presensiToCreate.length > 0) {
+        const createPresensiResult = await createBulkRecords('presensi', presensiToCreate);
+        if (!createPresensiResult.success) {
+          showToast('error', `Presensi gagal disimpan: ${createPresensiResult.message}`);
+          setSubmitting(false);
+          return;
+        }
+        presensiCreatedCount = createPresensiResult.totalAdded || presensiToCreate.length;
+      }
+
+      showToast(
+        'success',
+        `✅ Perkembangan tersimpan. Baru: ${createdCount}, Terupdate: ${updatedCount}. Presensi otomatis: +${presensiCreatedCount}, update ${presensiUpdatedCount}.`
+      );
       setInputOpen(false);
       resetInputModal();
       await loadData(true);
