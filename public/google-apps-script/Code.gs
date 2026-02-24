@@ -70,9 +70,9 @@ var SPREADSHEET_CONFIG = {
     headers: ['Nis', 'Nama Siswa', 'Tanggal', 'Jenis Tes', 'MTK', 'B.INDO', 'B.ING', 'MTK TL', 'FIS', 'KIM', 'BIO', 'GEO', 'SEJ', 'SOS', 'EKO', 'PP', 'IPA', 'IPS', 'PKWU', 'IND TL', 'ING TL', 'PU', 'PPU', 'PBM', 'PK', 'LIB', 'LING', 'PM', 'Rerata', 'Total', 'Cabang', 'Timestamp']
   },
   nilaiEvaluasi: {
-    spreadsheetId: '1yb_UoQKe3tgbbTmnfYUFQiNQLe9NGdWsE-fzVLGthmw',
-    sheetName: 'Nilai TES EVALUASI',
-    headers: ['Nis', 'Nama Siswa', 'Tanggal', 'Jenis Tes', 'MTK', 'B.INDO', 'B.ING', 'MTK TL', 'FIS', 'KIM', 'BIO', 'GEO', 'SEJ', 'SOS', 'EKO', 'PP', 'IPA', 'IPS', 'PKWU', 'IND TL', 'ING TL', 'PU', 'PPU', 'PBM', 'PK', 'LIB', 'LING', 'PM', 'Rerata', 'Total', 'Cabang', 'Timestamp']
+    spreadsheetId: '1gCIG5FDpcfKZsbkwyC3eAXOnTl_dEJB88ZyMiue5ytM',
+    sheetName: 'Evaluasi',
+    headers: ['Nis', 'Nama Siswa', 'Tanggal', 'Jenis Tes', 'Mata Pelajaran', 'Nilai', 'Cabang', 'Timestamp']
   },
   pelayanan: {
     spreadsheetId: '1KcsMCeFmGAmwKHFqnIxiUxDmLDpR6YDBZBd8Zbd-s6w',

@@ -319,6 +319,7 @@ export default function PrintRaporSiswa() {
       .map(([label, items]) => {
         const totalValues = items.map((row) => parseFloat(row['Total'] || '')).filter((v) => !Number.isNaN(v));
         const rerataValues = items.map((row) => parseFloat(row['Rerata'] || '')).filter((v) => !Number.isNaN(v));
+        const nilaiValues = items.map((row) => parseFloat(row['Nilai'] || '')).filter((v) => !Number.isNaN(v));
         const sortedByDate = [...items].sort((a, b) => {
           const da = parseDateValue(a['Tanggal'] || '')?.getTime() || 0;
           const db = parseDateValue(b['Tanggal'] || '')?.getTime() || 0;
@@ -326,20 +327,23 @@ export default function PrintRaporSiswa() {
         });
         const latest = sortedByDate[0];
         const previous = sortedByDate[1];
-        const latestRerata = parseFloat(latest?.['Rerata'] || '');
-        const previousRerata = parseFloat(previous?.['Rerata'] || '');
+        const isEvaluasi = label === 'Evaluasi';
+        const latestScore = parseFloat((isEvaluasi ? latest?.['Nilai'] : latest?.['Rerata']) || '');
+        const previousScore = parseFloat((isEvaluasi ? previous?.['Nilai'] : previous?.['Rerata']) || '');
         const delta =
-          !Number.isNaN(latestRerata) && !Number.isNaN(previousRerata)
-            ? latestRerata - previousRerata
+          !Number.isNaN(latestScore) && !Number.isNaN(previousScore)
+            ? latestScore - previousScore
             : null;
         return {
           label,
           count: items.length,
           avgTotal: average(totalValues),
           avgRerata: average(rerataValues),
+          avgNilai: average(nilaiValues),
           latest,
           previous,
           delta,
+          isEvaluasi,
         };
       })
       .filter((item) => item.count > 0);
@@ -416,21 +420,31 @@ export default function PrintRaporSiswa() {
 
   const nilaiChartItems = useMemo(() => {
     if (!nilaiSummary) return [];
-    return nilaiSummary.map((item) => ({
-      label: item.label,
-      value: Number.isNaN(item.avgRerata) ? 0 : parseFloat(item.avgRerata.toFixed(2)),
-    }));
+    return nilaiSummary.map((item) => {
+      const baseValue = item.isEvaluasi ? item.avgNilai : item.avgRerata;
+      return {
+        label: item.label,
+        value: Number.isNaN(baseValue) ? 0 : parseFloat(baseValue.toFixed(2)),
+      };
+    });
   }, [nilaiSummary]);
 
   const nilaiComparisonItems = useMemo(() => {
     if (!sortedNilaiRows.length) return [] as { label: string; value: number }[];
     const lastRow = sortedNilaiRows[0];
     const prevRow = sortedNilaiRows[1];
-    const lastValue = parseFloat(lastRow?.row['Rerata'] || '0');
-    const prevValue = parseFloat(prevRow?.row['Rerata'] || '0');
+    const getScore = (rowItem?: { label: string; row: Record<string, string> }) => {
+      if (!rowItem) return 0;
+      const field = rowItem.label === 'Evaluasi' ? 'Nilai' : 'Rerata';
+      const rawValue = rowItem.row[field] || '0';
+      const parsed = parseFloat(rawValue);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+    const lastValue = getScore(lastRow);
+    const prevValue = getScore(prevRow);
     return [
-      { label: `Tes Terakhir (${lastRow?.label || '-'})`, value: Number.isNaN(lastValue) ? 0 : lastValue },
-      { label: `Tes Sebelumnya (${prevRow?.label || '-'})`, value: Number.isNaN(prevValue) ? 0 : prevValue },
+      { label: `Tes Terakhir (${lastRow?.label || '-'})`, value: lastValue },
+      { label: `Tes Sebelumnya (${prevRow?.label || '-'})`, value: prevValue },
     ];
   }, [sortedNilaiRows]);
 
@@ -789,8 +803,14 @@ export default function PrintRaporSiswa() {
                   <p className="text-sm font-semibold text-gray-700">{item.label}</p>
                   <div className="mt-2 space-y-1 text-xs text-gray-500">
                     <p>Jumlah Tes: <span className="font-semibold text-gray-700">{item.count}</span></p>
-                    <p>Rerata: <span className="font-semibold text-gray-700">{formatNumber(item.avgRerata.toFixed(2))}</span></p>
-                    <p>Total: <span className="font-semibold text-gray-700">{formatNumber(item.avgTotal.toFixed(2))}</span></p>
+                    {item.isEvaluasi ? (
+                      <p>Nilai: <span className="font-semibold text-gray-700">{formatNumber(item.avgNilai.toFixed(2))}</span></p>
+                    ) : (
+                      <>
+                        <p>Rerata: <span className="font-semibold text-gray-700">{formatNumber(item.avgRerata.toFixed(2))}</span></p>
+                        <p>Total: <span className="font-semibold text-gray-700">{formatNumber(item.avgTotal.toFixed(2))}</span></p>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -801,21 +821,30 @@ export default function PrintRaporSiswa() {
                   <tr>
                     <th className="px-3 py-2 text-left">Jenis</th>
                     <th className="px-3 py-2 text-left">Tanggal</th>
-                    <th className="px-3 py-2 text-left">Tes</th>
-                    <th className="px-3 py-2 text-right">Rerata</th>
+                    <th className="px-3 py-2 text-left">Tes/Mapel</th>
+                    <th className="px-3 py-2 text-right">Rerata/Nilai</th>
                     <th className="px-3 py-2 text-right">Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {sortedNilaiRows.slice(0, 10).map((item, idx) => (
-                    <tr key={`${item.label}-${idx}`}>
-                      <td className="px-3 py-2 text-gray-600">{item.label}</td>
-                      <td className="px-3 py-2 text-gray-600">{formatDate(item.row['Tanggal'] || '')}</td>
-                      <td className="px-3 py-2 text-gray-600">{item.row['Jenis Tes'] || '-'}</td>
-                      <td className="px-3 py-2 text-right text-gray-600">{formatNumber(item.row['Rerata'] || '-')}</td>
-                      <td className="px-3 py-2 text-right text-gray-600">{formatNumber(item.row['Total'] || '-')}</td>
-                    </tr>
-                  ))}
+                  {sortedNilaiRows.slice(0, 10).map((item, idx) => {
+                    const isEvaluasi = item.label === 'Evaluasi';
+                    return (
+                      <tr key={`${item.label}-${idx}`}>
+                        <td className="px-3 py-2 text-gray-600">{item.label}</td>
+                        <td className="px-3 py-2 text-gray-600">{formatDate(item.row['Tanggal'] || '')}</td>
+                        <td className="px-3 py-2 text-gray-600">
+                          {isEvaluasi ? item.row['Mata Pelajaran'] || '-' : item.row['Jenis Tes'] || '-'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-600">
+                          {formatNumber(isEvaluasi ? item.row['Nilai'] || '-' : item.row['Rerata'] || '-')}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-600">
+                          {formatNumber(isEvaluasi ? '-' : item.row['Total'] || '-')}
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {sortedNilaiRows.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-3 py-4 text-center text-gray-400">
@@ -931,9 +960,12 @@ export default function PrintRaporSiswa() {
                         : item.delta < 0
                         ? `Menurun (${item.delta.toFixed(2)})`
                         : 'Stabil (0)';
+                    const labelValue = item.isEvaluasi
+                      ? `nilai ${formatNumber(item.avgNilai.toFixed(2))}`
+                      : `rerata ${formatNumber(item.avgRerata.toFixed(2))}`;
                     return (
                       <p key={item.label}>
-                        {item.label}: rerata <strong>{formatNumber(item.avgRerata.toFixed(2))}</strong> — {deltaText}.
+                        {item.label}: {labelValue} — {deltaText}.
                       </p>
                     );
                   })

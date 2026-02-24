@@ -43,8 +43,8 @@ const SPREADSHEET_CONFIG = {
     sheet: 'Nilai Tes Standar',
   },
   nilaiEvaluasi: {
-    id: '1yb_UoQKe3tgbbTmnfYUFQiNQLe9NGdWsE-fzVLGthmw',
-    sheet: 'Nilai TES EVALUASI',
+    id: '1gCIG5FDpcfKZsbkwyC3eAXOnTl_dEJB88ZyMiue5ytM',
+    sheet: 'Evaluasi',
   },
   pelayanan: {
     id: '1KcsMCeFmGAmwKHFqnIxiUxDmLDpR6YDBZBd8Zbd-s6w',

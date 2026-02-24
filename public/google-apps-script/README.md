@@ -102,7 +102,7 @@ Content-Type: text/plain
 | `nilaiTkaSmp` | Nilai Siswa | Nilai TKA SMP |
 | `nilaiTkaSd` | Nilai Siswa | Nilai TKA SD |
 | `nilaiTesStandar` | Nilai Siswa | Nilai Tes Standar |
-| `nilaiEvaluasi` | Nilai Siswa | Nilai TES EVALUASI |
+| `nilaiEvaluasi` | Nilai Siswa | Evaluasi |
 | `pelayanan` | Pelayanan | Pelayanan |
 | `pengajar` | Nama Pengajar | Pengajar |
 

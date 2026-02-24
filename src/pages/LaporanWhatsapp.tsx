@@ -446,10 +446,15 @@ export default function LaporanWhatsapp() {
     const formatNilaiLine = (label: string, rows: Record<string, string>[]) => {
       if (!rows.length) return '';
       const latest = rows[0];
-      const rerata = latest['Rerata'] || '-';
-      const total = latest['Total'] || '-';
       const tanggal = formatDate(latest['Tanggal'] || '');
       const jenis = latest['Jenis Tes'] || '-';
+      if (label === 'Evaluasi') {
+        const mapel = latest['Mata Pelajaran'] || '-';
+        const nilai = latest['Nilai'] || '-';
+        return `• ${label}: ${tanggal} (${jenis}) | Mapel: ${mapel} | Nilai: ${nilai}`;
+      }
+      const rerata = latest['Rerata'] || '-';
+      const total = latest['Total'] || '-';
       return `• ${label}: ${tanggal} (${jenis}) | Rerata: ${rerata} | Total: ${total}`;
     };
 
@@ -733,8 +738,16 @@ export default function LaporanWhatsapp() {
                           <tr key={`${item.type}-${idx}`}>
                             <td className="px-3 py-2 text-gray-600">{item.type}</td>
                             <td className="px-3 py-2 text-gray-600">{formatDate(item.row['Tanggal'] || '')}</td>
-                            <td className="px-3 py-2 text-gray-600">{item.row['Jenis Tes'] || '-'}</td>
-                            <td className="px-3 py-2 text-right text-gray-600">{item.row['Rerata'] || '-'}</td>
+                            <td className="px-3 py-2 text-gray-600">
+                              {item.type === 'Evaluasi'
+                                ? item.row['Mata Pelajaran'] || '-'
+                                : item.row['Jenis Tes'] || '-'}
+                            </td>
+                            <td className="px-3 py-2 text-right text-gray-600">
+                              {item.type === 'Evaluasi'
+                                ? item.row['Nilai'] || '-'
+                                : item.row['Rerata'] || '-'}
+                            </td>
                           </tr>
                         ))}
                     </tbody>
