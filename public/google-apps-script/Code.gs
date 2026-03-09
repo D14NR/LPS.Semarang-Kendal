@@ -297,7 +297,8 @@ function handleCreate(sheetKey, data) {
   // Buat array row sesuai urutan header
   var newRow = [];
   for (var i = 0; i < headers.length; i++) {
-    var value = data[headers[i]] !== undefined && data[headers[i]] !== null ? data[headers[i]] : '';
+    var value = getValueByHeader(data, headers[i]);
+    value = value !== undefined && value !== null ? value : '';
     if (typeof value === 'string') {
       value = value.trim();
     }
@@ -347,7 +348,8 @@ function handleUpdate(sheetKey, rowIndex, data) {
   // Buat array row sesuai urutan header
   var updatedRow = [];
   for (var i = 0; i < headers.length; i++) {
-    var value = data[headers[i]] !== undefined && data[headers[i]] !== null ? data[headers[i]] : '';
+    var value = getValueByHeader(data, headers[i]);
+    value = value !== undefined && value !== null ? value : '';
     if (typeof value === 'string') {
       value = value.trim();
     }
@@ -418,11 +420,12 @@ function handleBulkCreate(sheetKey, dataArray) {
     data['Timestamp'] = timestamp;
     var row = [];
     for (var i = 0; i < headers.length; i++) {
-          var value = data[headers[i]] !== undefined && data[headers[i]] !== null ? data[headers[i]] : '';
-    if (typeof value === 'string') {
-      value = value.trim();
-    }
-    row.push(value);
+      var value = getValueByHeader(data, headers[i]);
+      value = value !== undefined && value !== null ? value : '';
+      if (typeof value === 'string') {
+        value = value.trim();
+      }
+      row.push(value);
     }
     rows.push(row);
   }
@@ -505,6 +508,32 @@ function normalizeHeader(header) {
     .replace(/^\uFEFF/, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function normalizeKeyDeep(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .toLowerCase()
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\u00A0/g, ' ')
+    .replace(/[^a-z0-9]/gi, '')
+    .trim();
+}
+
+function getValueByHeader(data, header) {
+  if (!data) return '';
+  if (data[header] !== undefined && data[header] !== null) {
+    return data[header];
+  }
+  var normalizedHeader = normalizeKeyDeep(header);
+  for (var key in data) {
+    if (data.hasOwnProperty(key)) {
+      if (normalizeKeyDeep(key) === normalizedHeader) {
+        return data[key];
+      }
+    }
+  }
+  return '';
 }
 
 /**

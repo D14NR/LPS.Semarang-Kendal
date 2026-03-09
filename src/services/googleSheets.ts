@@ -1,9 +1,16 @@
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
 // Google Sheets API service via Google Apps Script Web App
 // OPTIMIZED VERSION - With caching, timeout, and parallel fetching
 
 // ===================== KONFIGURASI =====================
 
 const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxJYL__OE81FMUFKbXecW3T2HFiFwM7RozLje293UQF6X6WNIqgtuJHAF3A6sCyPTNKqw/exec';
+const DATA_SOURCE_KEY = 'akademik_data_source';
+const SUPABASE_URL_KEY = 'akademik_supabase_url';
+const SUPABASE_ANON_KEY = 'akademik_supabase_anon_key';
+
+type DataSource = 'apps_script' | 'supabase';
 
 const SPREADSHEET_CONFIG = {
   siswa: {
@@ -38,10 +45,6 @@ const SPREADSHEET_CONFIG = {
     id: '1yb_UoQKe3tgbbTmnfYUFQiNQLe9NGdWsE-fzVLGthmw',
     sheet: 'Nilai TKA SD',
   },
-  nilaiTesStandar: {
-    id: '1yb_UoQKe3tgbbTmnfYUFQiNQLe9NGdWsE-fzVLGthmw',
-    sheet: 'Nilai Tes Standar',
-  },
   nilaiEvaluasi: {
     id: '1gCIG5FDpcfKZsbkwyC3eAXOnTl_dEJB88ZyMiue5ytM',
     sheet: 'Evaluasi',
@@ -57,6 +60,60 @@ const SPREADSHEET_CONFIG = {
 };
 
 export type SheetKey = keyof typeof SPREADSHEET_CONFIG;
+
+const SUPABASE_TABLE_MAP: Record<SheetKey, string> = {
+  siswa: 'siswa',
+  kelompokKelas: 'kelompok_kelas',
+  presensi: 'presensi',
+  perkembangan: 'perkembangan',
+  nilaiUtbk: 'nilai_utbk',
+  nilaiTkaSma: 'nilai_tka_sma',
+  nilaiTkaSmp: 'nilai_tka_smp',
+  nilaiTkaSd: 'nilai_tka_sd',
+  nilaiEvaluasi: 'nilai_evaluasi',
+  pelayanan: 'pelayanan',
+  pengajar: 'pengajar',
+};
+
+let supabaseClient: SupabaseClient | null = null;
+
+const getSupabaseClient = () => {
+  if (supabaseClient) return supabaseClient;
+  const url = localStorage.getItem(SUPABASE_URL_KEY) || '';
+  const anonKey = localStorage.getItem(SUPABASE_ANON_KEY) || '';
+  if (!url || !anonKey) return null;
+  supabaseClient = createClient(url, anonKey, {
+    auth: { persistSession: false },
+  });
+  return supabaseClient;
+};
+
+export function getDataSource(): DataSource {
+  const saved = localStorage.getItem(DATA_SOURCE_KEY) as DataSource | null;
+  return saved || 'apps_script';
+}
+
+export function setDataSource(source: DataSource): void {
+  localStorage.setItem(DATA_SOURCE_KEY, source);
+}
+
+export function setSupabaseConfig(url: string, anonKey: string): void {
+  localStorage.setItem(SUPABASE_URL_KEY, url.trim());
+  localStorage.setItem(SUPABASE_ANON_KEY, anonKey.trim());
+  supabaseClient = null;
+}
+
+export function getSupabaseConfig(): { url: string; anonKey: string } {
+  return {
+    url: localStorage.getItem(SUPABASE_URL_KEY) || '',
+    anonKey: localStorage.getItem(SUPABASE_ANON_KEY) || '',
+  };
+}
+
+export function isSupabaseConfigured(): boolean {
+  const { url, anonKey } = getSupabaseConfig();
+  return url.startsWith('https://') && anonKey.length > 10;
+}
 
 // ===================== CACHE SYSTEM =====================
 
@@ -230,6 +287,10 @@ export function getDefaultAppsScriptUrl(): string {
 }
 
 export function isAppsScriptConfigured(): boolean {
+  const source = getDataSource();
+  if (source === 'supabase') {
+    return isSupabaseConfigured();
+  }
   const url = getAppsScriptUrl();
   return url.length > 0 && url.startsWith('https://script.google.com/');
 }
@@ -251,7 +312,12 @@ interface ApiResponse {
 
 // ===================== FETCH WITH TIMEOUT =====================
 
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 15000): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = 15000,
+  retries = 1,
+): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -261,6 +327,15 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
       signal: controller.signal,
     });
     return response;
+  } catch (error) {
+    const isAbort = error instanceof DOMException && error.name === 'AbortError';
+    if (isAbort && retries > 0) {
+      return fetchWithTimeout(url, options, timeoutMs + 5000, retries - 1);
+    }
+    if (isAbort) {
+      throw new Error('Koneksi timeout. Silakan coba lagi.');
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
@@ -416,6 +491,25 @@ async function apiPost(body: Record<string, unknown>): Promise<ApiResponse> {
   return await response.json();
 }
 
+async function supabaseRead(sheetKey: SheetKey): Promise<Record<string, string>[]> {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase belum dikonfigurasi.');
+  const table = SUPABASE_TABLE_MAP[sheetKey];
+  const { data, error } = await client.from(table).select('*');
+  if (error) throw error;
+  return (data || []) as Record<string, string>[];
+}
+
+async function supabaseCreate(sheetKey: SheetKey, payload: Record<string, string>) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase belum dikonfigurasi.');
+  const table = SUPABASE_TABLE_MAP[sheetKey];
+  const { data, error } = await client.from(table).insert(payload).select('*').single();
+  if (error) throw error;
+  return data as Record<string, string>;
+}
+
+
 // ===================== MAIN CRUD FUNCTIONS =====================
 
 /**
@@ -442,6 +536,14 @@ export async function fetchAllData(key: SheetKey, forceRefresh = false): Promise
   // 3. Create the fetch promise
   const fetchPromise = (async (): Promise<Record<string, string>[]> => {
     try {
+      const dataSource = getDataSource();
+      if (dataSource === 'supabase') {
+        const supabaseData = await supabaseRead(key);
+        const normalizedSupabase = normalizeSheetData(key, supabaseData);
+        setCache(cacheKey, normalizedSupabase);
+        return normalizedSupabase;
+      }
+
       // Try CSV first (usually faster, no cold start)
       const csvData = await fetchCSVData(key);
       if (csvData.length > 0) {
@@ -492,6 +594,27 @@ export async function createRecord(key: SheetKey, data: Record<string, string>):
   delete cleanData['_rowIndex'];
   delete cleanData['Timestamp'];
 
+  if (getDataSource() === 'supabase') {
+    try {
+      const created = await supabaseCreate(key, cleanData);
+      invalidateCache(key);
+      if (key === 'kelompokKelas') {
+        invalidateOptionsCache('kelompokKelas');
+      }
+      return {
+        success: true,
+        message: 'Data berhasil ditambahkan (Supabase).',
+        data: {
+          ...created,
+          _id: `sb_${created.id || Date.now()}`,
+          _rowIndex: String(created.row_index || created._rowIndex || ''),
+        },
+      };
+    } catch (error) {
+      return { success: false, message: `Supabase error: ${error instanceof Error ? error.message : 'Unknown error'}` };
+    }
+  }
+
   if (isAppsScriptConfigured()) {
     try {
       const result = await apiPost({
@@ -519,11 +642,15 @@ export async function createRecord(key: SheetKey, data: Record<string, string>):
       }
       return { success: false, message: result.message };
     } catch (error) {
-      return { success: false, message: `Error koneksi: ${error instanceof Error ? error.message : 'Unknown error'}` };
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      if (message.includes('timeout')) {
+        return { success: false, message: 'Koneksi timeout. Coba lagi beberapa saat.' };
+      }
+      return { success: false, message: `Error koneksi: ${message}` };
     }
   }
 
-  return { success: false, message: 'Google Apps Script belum dikonfigurasi.' };
+  return { success: false, message: 'Server database belum dikonfigurasi.' };
 }
 
 /**
@@ -555,7 +682,11 @@ export async function createBulkRecords(key: SheetKey, dataArray: Record<string,
       }
       return { success: false, message: result.message };
     } catch (error) {
-      return { success: false, message: `Error koneksi: ${error instanceof Error ? error.message : 'Unknown error'}` };
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      if (message.includes('timeout')) {
+        return { success: false, message: 'Koneksi timeout. Coba lagi beberapa saat.' };
+      }
+      return { success: false, message: `Error koneksi: ${message}` };
     }
   }
 
@@ -584,7 +715,11 @@ export async function updateRecord(key: SheetKey, rowIndex: number, data: Record
       }
       return { success: result.success, message: result.message };
     } catch (error) {
-      return { success: false, message: `Error koneksi: ${error instanceof Error ? error.message : 'Unknown error'}` };
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      if (message.includes('timeout')) {
+        return { success: false, message: 'Koneksi timeout. Coba lagi beberapa saat.' };
+      }
+      return { success: false, message: `Error koneksi: ${message}` };
     }
   }
 
@@ -607,7 +742,11 @@ export async function deleteRecord(key: SheetKey, rowIndex: number): Promise<{ s
       }
       return { success: result.success, message: result.message };
     } catch (error) {
-      return { success: false, message: `Error koneksi: ${error instanceof Error ? error.message : 'Unknown error'}` };
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      if (message.includes('timeout')) {
+        return { success: false, message: 'Koneksi timeout. Coba lagi beberapa saat.' };
+      }
+      return { success: false, message: `Error koneksi: ${message}` };
     }
   }
 

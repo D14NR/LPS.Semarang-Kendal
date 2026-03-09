@@ -675,9 +675,81 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
         }))
       : importRecords;
 
-    const result = await createBulkRecords(sheetKey, recordsToImport);
+    const normalizeKey = (record: Record<string, string>) =>
+      autoReplaceKeys
+        .map((key) => String(record[key] || '').trim().toLowerCase())
+        .join('|');
+
+    const dedupedMap = new Map<string, Record<string, string>>();
+    recordsToImport.forEach((record) => {
+      if (autoReplaceKeys.length === 0) {
+        dedupedMap.set(`${Math.random()}`, record);
+        return;
+      }
+      const key = normalizeKey(record);
+      if (key) dedupedMap.set(key, record);
+    });
+
+    const dedupedRecords = Array.from(dedupedMap.values());
+
+    if (autoReplaceKeys.length > 0) {
+      const existingMap = new Map<string, Record<string, string>>();
+      data.forEach((row) => {
+        const key = normalizeKey(row);
+        if (key) existingMap.set(key, row);
+      });
+
+      const toUpdate: Array<{ rowIndex: number; payload: Record<string, string> }> = [];
+      const toCreate: Record<string, string>[] = [];
+
+      dedupedRecords.forEach((record) => {
+        const key = normalizeKey(record);
+        const existing = key ? existingMap.get(key) : undefined;
+        if (existing && existing['_rowIndex']) {
+          const rowIndex = parseInt(existing['_rowIndex'] || '0', 10);
+          if (rowIndex >= 2) {
+            toUpdate.push({ rowIndex, payload: record });
+            return;
+          }
+        }
+        toCreate.push(record);
+      });
+
+      const updateResults = await Promise.all(
+        toUpdate.map(async (item) => updateRecord(sheetKey, item.rowIndex, item.payload))
+      );
+      const updateFailures = updateResults.filter((res) => !res.success);
+
+      let createResult = { success: true, message: 'OK', totalAdded: 0 } as {
+        success: boolean;
+        message: string;
+        totalAdded?: number;
+      };
+      if (toCreate.length > 0) {
+        createResult = await createBulkRecords(sheetKey, toCreate);
+      }
+
+      if (updateFailures.length === 0 && createResult.success) {
+        const totalAdded = createResult.totalAdded || toCreate.length;
+        showToast('success', `✅ Import selesai: ${toUpdate.length} diperbarui, ${totalAdded} ditambahkan.`);
+        setImportOpen(false);
+        setImportRecords([]);
+        setImportPreview([]);
+        await loadData(true);
+      } else {
+        const errorMessage = updateFailures.length
+          ? updateFailures[0].message
+          : createResult.message;
+        setImportError(errorMessage || 'Terjadi kesalahan saat import.');
+      }
+
+      setImportLoading(false);
+      return;
+    }
+
+    const result = await createBulkRecords(sheetKey, dedupedRecords);
     if (result.success) {
-      showToast('success', `✅ ${result.totalAdded || recordsToImport.length} data berhasil diimport!`);
+      showToast('success', `✅ ${result.totalAdded || dedupedRecords.length} data berhasil diimport!`);
       setImportOpen(false);
       setImportRecords([]);
       setImportPreview([]);

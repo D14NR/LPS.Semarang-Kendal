@@ -10,7 +10,6 @@ import NilaiUtbk from './pages/NilaiUtbk';
 import NilaiTkaSma from './pages/NilaiTkaSma';
 import NilaiTkaSmp from './pages/NilaiTkaSmp';
 import NilaiTkaSd from './pages/NilaiTkaSd';
-import NilaiTesStandar from './pages/NilaiTesStandar';
 import NilaiEvaluasi from './pages/NilaiEvaluasi';
 import PelayananJamTambahan from './pages/PelayananJamTambahan';
 import NamaPengajar from './pages/NamaPengajar';
@@ -37,7 +36,6 @@ function AppContent() {
           <Route path="/nilai/tka-sma" element={<NilaiTkaSma />} />
           <Route path="/nilai/tka-smp" element={<NilaiTkaSmp />} />
           <Route path="/nilai/tka-sd" element={<NilaiTkaSd />} />
-          <Route path="/nilai/tes-standar" element={<NilaiTesStandar />} />
           <Route path="/nilai/evaluasi" element={<NilaiEvaluasi />} />
           <Route path="/pelayanan" element={<PelayananJamTambahan />} />
           <Route path="/pengajar" element={<NamaPengajar />} />

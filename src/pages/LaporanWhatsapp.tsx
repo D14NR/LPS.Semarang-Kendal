@@ -73,7 +73,6 @@ export default function LaporanWhatsapp() {
   const [nilaiTkaSmaData, setNilaiTkaSmaData] = useState<Record<string, string>[]>([]);
   const [nilaiTkaSmpData, setNilaiTkaSmpData] = useState<Record<string, string>[]>([]);
   const [nilaiTkaSdData, setNilaiTkaSdData] = useState<Record<string, string>[]>([]);
-  const [nilaiTesStandarData, setNilaiTesStandarData] = useState<Record<string, string>[]>([]);
   const [nilaiEvaluasiData, setNilaiEvaluasiData] = useState<Record<string, string>[]>([]);
   const [pelayananData, setPelayananData] = useState<Record<string, string>[]>([]);
 
@@ -88,7 +87,7 @@ export default function LaporanWhatsapp() {
     if (forceRefresh) setRefreshing(true);
     setLoading(true);
     try {
-      const [siswa, presensi, perkembangan, nilaiUtbk, nilaiTkaSma, nilaiTkaSmp, nilaiTkaSd, nilaiTesStandar, nilaiEvaluasi, pelayanan] = await Promise.all([
+      const [siswa, presensi, perkembangan, nilaiUtbk, nilaiTkaSma, nilaiTkaSmp, nilaiTkaSd, nilaiEvaluasi, pelayanan] = await Promise.all([
         fetchAllData('siswa', forceRefresh),
         fetchAllData('presensi', forceRefresh),
         fetchAllData('perkembangan', forceRefresh),
@@ -96,7 +95,6 @@ export default function LaporanWhatsapp() {
         fetchAllData('nilaiTkaSma', forceRefresh),
         fetchAllData('nilaiTkaSmp', forceRefresh),
         fetchAllData('nilaiTkaSd', forceRefresh),
-        fetchAllData('nilaiTesStandar', forceRefresh),
         fetchAllData('nilaiEvaluasi', forceRefresh),
         fetchAllData('pelayanan', forceRefresh),
       ]);
@@ -107,7 +105,6 @@ export default function LaporanWhatsapp() {
       setNilaiTkaSmaData(nilaiTkaSma);
       setNilaiTkaSmpData(nilaiTkaSmp);
       setNilaiTkaSdData(nilaiTkaSd);
-      setNilaiTesStandarData(nilaiTesStandar);
       setNilaiEvaluasiData(nilaiEvaluasi);
       setPelayananData(pelayanan);
     } finally {
@@ -221,10 +218,9 @@ export default function LaporanWhatsapp() {
       tkaSma: filterRows(nilaiTkaSmaData),
       tkaSmp: filterRows(nilaiTkaSmpData),
       tkaSd: filterRows(nilaiTkaSdData),
-      tesStandar: filterRows(nilaiTesStandarData),
       evaluasi: filterRows(nilaiEvaluasiData),
     };
-  }, [selectedStudentData, dateRange, nilaiUtbkData, nilaiTkaSmaData, nilaiTkaSmpData, nilaiTkaSdData, nilaiTesStandarData, nilaiEvaluasiData]);
+  }, [selectedStudentData, dateRange, nilaiUtbkData, nilaiTkaSmaData, nilaiTkaSmpData, nilaiTkaSdData, nilaiEvaluasiData]);
 
   const pelayananFiltered = useMemo(() => {
     if (!selectedStudentData) return [] as Record<string, string>[];
@@ -369,7 +365,6 @@ export default function LaporanWhatsapp() {
     nilaiBundle.tkaSma.length +
     nilaiBundle.tkaSmp.length +
     nilaiBundle.tkaSd.length +
-    nilaiBundle.tesStandar.length +
     nilaiBundle.evaluasi.length;
 
   const whatsappNumber = useMemo(() => {
@@ -459,7 +454,6 @@ export default function LaporanWhatsapp() {
       formatNilaiLine('TKA SMA', nilaiBundle.tkaSma),
       formatNilaiLine('TKA SMP', nilaiBundle.tkaSmp),
       formatNilaiLine('TKA SD', nilaiBundle.tkaSd),
-      formatNilaiLine('Tes Standar', nilaiBundle.tesStandar),
       formatNilaiLine('Evaluasi', nilaiBundle.evaluasi),
     ].filter(Boolean);
 
@@ -721,7 +715,6 @@ export default function LaporanWhatsapp() {
                         ...nilaiBundle.tkaSma.map((row) => ({ type: 'TKA SMA', row })),
                         ...nilaiBundle.tkaSmp.map((row) => ({ type: 'TKA SMP', row })),
                         ...nilaiBundle.tkaSd.map((row) => ({ type: 'TKA SD', row })),
-                        ...nilaiBundle.tesStandar.map((row) => ({ type: 'Tes Standar', row })),
                         ...nilaiBundle.evaluasi.map((row) => ({ type: 'Evaluasi', row })),
                       ]
                         .sort((a, b) => {

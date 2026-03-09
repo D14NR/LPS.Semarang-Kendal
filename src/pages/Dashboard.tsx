@@ -37,7 +37,6 @@ const sheetConfigs: { key: SheetKey; label: string; path: string; cabangField: s
   { key: 'nilaiTkaSma', label: 'Nilai TKA SMA', path: '/nilai/tka-sma', cabangField: 'Cabang' },
   { key: 'nilaiTkaSmp', label: 'Nilai TKA SMP', path: '/nilai/tka-smp', cabangField: 'Cabang' },
   { key: 'nilaiTkaSd', label: 'Nilai TKA SD', path: '/nilai/tka-sd', cabangField: 'Cabang' },
-  { key: 'nilaiTesStandar', label: 'Nilai Tes Standar', path: '/nilai/tes-standar', cabangField: 'Cabang' },
   { key: 'nilaiEvaluasi', label: 'Nilai Evaluasi', path: '/nilai/evaluasi', cabangField: 'Cabang' },
   { key: 'pelayanan', label: 'Pelayanan', path: '/pelayanan', cabangField: 'Cabang' },
   { key: 'pengajar', label: 'Pengajar', path: '/pengajar', cabangField: '' },

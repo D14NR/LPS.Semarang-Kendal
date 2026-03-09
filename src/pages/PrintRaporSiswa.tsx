@@ -27,7 +27,6 @@ interface SheetBundle {
   nilaiTkaSma: Record<string, string>[];
   nilaiTkaSmp: Record<string, string>[];
   nilaiTkaSd: Record<string, string>[];
-  nilaiTesStandar: Record<string, string>[];
   nilaiEvaluasi: Record<string, string>[];
 }
 
@@ -40,7 +39,6 @@ const sheetKeys: SheetKey[] = [
   'nilaiTkaSma',
   'nilaiTkaSmp',
   'nilaiTkaSd',
-  'nilaiTesStandar',
   'nilaiEvaluasi',
 ];
 
@@ -243,8 +241,8 @@ export default function PrintRaporSiswa() {
       'TKA SMA': bundle.nilaiTkaSma.filter((row) => row['Nis'] === nis).filter((row) => withinRange(row['Tanggal'], dateRange.start, dateRange.end)),
       'TKA SMP': bundle.nilaiTkaSmp.filter((row) => row['Nis'] === nis).filter((row) => withinRange(row['Tanggal'], dateRange.start, dateRange.end)),
       'TKA SD': bundle.nilaiTkaSd.filter((row) => row['Nis'] === nis).filter((row) => withinRange(row['Tanggal'], dateRange.start, dateRange.end)),
-      'Tes Standar': bundle.nilaiTesStandar.filter((row) => row['Nis'] === nis).filter((row) => withinRange(row['Tanggal'], dateRange.start, dateRange.end)),
-      Evaluasi: bundle.nilaiEvaluasi.filter((row) => row['Nis'] === nis).filter((row) => withinRange(row['Tanggal'], dateRange.start, dateRange.end)),
+      Evaluasi: bundle.nilaiEvaluasi.filter((row: Record<string, string>) => row['Nis'] === nis)
+        .filter((row: Record<string, string>) => withinRange(row['Tanggal'], dateRange.start, dateRange.end)),
     };
 
     return { presensi, perkembangan, pelayanan, nilai };

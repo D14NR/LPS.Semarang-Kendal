@@ -44,7 +44,6 @@ const menuItems = [
       { name: 'Nilai TKA SMA', path: '/nilai/tka-sma', icon: 'filetext' },
       { name: 'Nilai TKA SMP', path: '/nilai/tka-smp', icon: 'filetext' },
       { name: 'Nilai TKA SD', path: '/nilai/tka-sd', icon: 'filetext' },
-      { name: 'Nilai Tes Standar', path: '/nilai/tes-standar', icon: 'filetext' },
       { name: 'Nilai Evaluasi', path: '/nilai/evaluasi', icon: 'bookopen' },
     ],
   },
