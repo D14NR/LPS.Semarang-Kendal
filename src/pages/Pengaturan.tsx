@@ -93,12 +93,12 @@ export default function Pengaturan() {
   const steps = [
     {
       num: 1,
-      title: 'Buka Server Database',
+      title: 'Buka Server Database (Apps Script)',
       icon: <Code size={18} />,
       content: (
         <div className="space-y-3">
           <p className="text-sm text-gray-600">
-            Buka layanan server database Anda dan siapkan project Web App, atau buka project yang sudah ada.
+            Buka layanan Google Apps Script dan siapkan project Web App, atau buka project yang sudah ada.
           </p>
           <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500">
             Pastikan Anda login menggunakan akun Google yang memiliki akses ke semua spreadsheet.
@@ -112,10 +112,10 @@ export default function Pengaturan() {
       icon: <Copy size={18} />,
       content: (
         <div className="space-y-3">
-          <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600">
             Copy kode Web App berikut, lalu paste ke dalam file{' '}
             <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono">Code.gs</code>{' '}
-            di project server database Anda.
+            di project Google Apps Script Anda.
           </p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -144,7 +144,7 @@ export default function Pengaturan() {
       icon: <Zap size={18} />,
       content: (
         <div className="space-y-3">
-          <p className="text-sm text-gray-600">Di editor server database:</p>
+          <p className="text-sm text-gray-600">Di editor Google Apps Script:</p>
           <ol className="space-y-2 text-sm text-gray-600 list-decimal pl-5">
             <li>
               Klik tombol <strong>"Deploy"</strong> → <strong>"New deployment"</strong>
@@ -183,7 +183,7 @@ export default function Pengaturan() {
       content: (
         <div className="space-y-3">
           <p className="text-sm text-gray-600">
-            Di server database, jalankan fungsi{' '}
+            Di Google Apps Script, jalankan fungsi{' '}
             <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono">setupAllSheets</code>{' '}
             sekali untuk memformat header di semua dataset.
           </p>
@@ -206,7 +206,7 @@ export default function Pengaturan() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Pengaturan</h1>
-        <p className="text-gray-500 mt-1">Konfigurasi koneksi server database untuk CRUD</p>
+        <p className="text-gray-500 mt-1">Konfigurasi koneksi Google Apps Script untuk CRUD</p>
       </div>
 
       {/* Connection Status */}
@@ -230,18 +230,18 @@ export default function Pengaturan() {
           </h3>
           <p className={`text-sm ${isConfigured ? 'text-green-600' : 'text-gray-500'}`}>
             {isConfigured
-              ? 'Server database sudah dikonfigurasi. Semua operasi CRUD dapat dilakukan.'
-              : 'Silakan ikuti langkah-langkah di bawah untuk menghubungkan server database.'}
+              ? 'Google Apps Script sudah dikonfigurasi. Semua operasi CRUD dapat dilakukan.'
+              : 'Silakan ikuti langkah-langkah di bawah untuk menghubungkan Google Apps Script.'}
           </p>
         </div>
       </div>
 
       {/* URL Configuration Card */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
-        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <Zap size={20} className="text-blue-600" />
-          URL Server Database (Web App)
-        </h2>
+          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <Zap size={20} className="text-blue-600" />
+            URL Google Apps Script (Web App)
+          </h2>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">URL Web App</label>
@@ -341,7 +341,7 @@ export default function Pengaturan() {
         <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
           <BookOpen size={20} className="text-blue-600" />
           <h2 className="text-lg font-semibold text-gray-800">
-            Panduan Deploy Server Database
+            Panduan Deploy Google Apps Script
           </h2>
           <span className="text-xs text-gray-400">(jika ingin deploy sendiri)</span>
         </div>
@@ -391,7 +391,7 @@ export default function Pengaturan() {
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
         <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
           <BookOpen size={20} className="text-blue-600" />
-          Dokumentasi API
+          Dokumentasi API (Google Apps Script)
         </h2>
 
         <div className="overflow-x-auto">
@@ -490,7 +490,6 @@ export default function Pengaturan() {
               'nilaiTkaSma',
               'nilaiTkaSmp',
               'nilaiTkaSd',
-              'nilaiTesStandar',
               'nilaiEvaluasi',
               'pelayanan',
               'pengajar',

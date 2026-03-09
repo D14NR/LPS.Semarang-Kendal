@@ -1,16 +1,9 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-
 // Google Sheets API service via Google Apps Script Web App
 // OPTIMIZED VERSION - With caching, timeout, and parallel fetching
 
 // ===================== KONFIGURASI =====================
 
 const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxJYL__OE81FMUFKbXecW3T2HFiFwM7RozLje293UQF6X6WNIqgtuJHAF3A6sCyPTNKqw/exec';
-const DATA_SOURCE_KEY = 'akademik_data_source';
-const SUPABASE_URL_KEY = 'akademik_supabase_url';
-const SUPABASE_ANON_KEY = 'akademik_supabase_anon_key';
-
-type DataSource = 'apps_script' | 'supabase';
 
 const SPREADSHEET_CONFIG = {
   siswa: {
@@ -61,60 +54,6 @@ const SPREADSHEET_CONFIG = {
 
 export type SheetKey = keyof typeof SPREADSHEET_CONFIG;
 
-const SUPABASE_TABLE_MAP: Record<SheetKey, string> = {
-  siswa: 'siswa',
-  kelompokKelas: 'kelompok_kelas',
-  presensi: 'presensi',
-  perkembangan: 'perkembangan',
-  nilaiUtbk: 'nilai_utbk',
-  nilaiTkaSma: 'nilai_tka_sma',
-  nilaiTkaSmp: 'nilai_tka_smp',
-  nilaiTkaSd: 'nilai_tka_sd',
-  nilaiEvaluasi: 'nilai_evaluasi',
-  pelayanan: 'pelayanan',
-  pengajar: 'pengajar',
-};
-
-let supabaseClient: SupabaseClient | null = null;
-
-const getSupabaseClient = () => {
-  if (supabaseClient) return supabaseClient;
-  const url = localStorage.getItem(SUPABASE_URL_KEY) || '';
-  const anonKey = localStorage.getItem(SUPABASE_ANON_KEY) || '';
-  if (!url || !anonKey) return null;
-  supabaseClient = createClient(url, anonKey, {
-    auth: { persistSession: false },
-  });
-  return supabaseClient;
-};
-
-export function getDataSource(): DataSource {
-  const saved = localStorage.getItem(DATA_SOURCE_KEY) as DataSource | null;
-  return saved || 'apps_script';
-}
-
-export function setDataSource(source: DataSource): void {
-  localStorage.setItem(DATA_SOURCE_KEY, source);
-}
-
-export function setSupabaseConfig(url: string, anonKey: string): void {
-  localStorage.setItem(SUPABASE_URL_KEY, url.trim());
-  localStorage.setItem(SUPABASE_ANON_KEY, anonKey.trim());
-  supabaseClient = null;
-}
-
-export function getSupabaseConfig(): { url: string; anonKey: string } {
-  return {
-    url: localStorage.getItem(SUPABASE_URL_KEY) || '',
-    anonKey: localStorage.getItem(SUPABASE_ANON_KEY) || '',
-  };
-}
-
-export function isSupabaseConfigured(): boolean {
-  const { url, anonKey } = getSupabaseConfig();
-  return url.startsWith('https://') && anonKey.length > 10;
-}
-
 // ===================== CACHE SYSTEM =====================
 
 interface CacheEntry {
@@ -143,7 +82,6 @@ function normalizeRowKeys(row: Record<string, string>): Record<string, string> {
   Object.entries(row).forEach(([key, value]) => {
     const cleanedKey = normalizeKey(key);
     normalized[cleanedKey] = value;
-    // Keep original key if different to avoid losing access
     if (cleanedKey !== key && normalized[key] === undefined) {
       normalized[key] = value;
     }
@@ -287,10 +225,6 @@ export function getDefaultAppsScriptUrl(): string {
 }
 
 export function isAppsScriptConfigured(): boolean {
-  const source = getDataSource();
-  if (source === 'supabase') {
-    return isSupabaseConfigured();
-  }
   const url = getAppsScriptUrl();
   return url.length > 0 && url.startsWith('https://script.google.com/');
 }
@@ -491,25 +425,6 @@ async function apiPost(body: Record<string, unknown>): Promise<ApiResponse> {
   return await response.json();
 }
 
-async function supabaseRead(sheetKey: SheetKey): Promise<Record<string, string>[]> {
-  const client = getSupabaseClient();
-  if (!client) throw new Error('Supabase belum dikonfigurasi.');
-  const table = SUPABASE_TABLE_MAP[sheetKey];
-  const { data, error } = await client.from(table).select('*');
-  if (error) throw error;
-  return (data || []) as Record<string, string>[];
-}
-
-async function supabaseCreate(sheetKey: SheetKey, payload: Record<string, string>) {
-  const client = getSupabaseClient();
-  if (!client) throw new Error('Supabase belum dikonfigurasi.');
-  const table = SUPABASE_TABLE_MAP[sheetKey];
-  const { data, error } = await client.from(table).insert(payload).select('*').single();
-  if (error) throw error;
-  return data as Record<string, string>;
-}
-
-
 // ===================== MAIN CRUD FUNCTIONS =====================
 
 /**
@@ -519,7 +434,6 @@ async function supabaseCreate(sheetKey: SheetKey, payload: Record<string, string
 export async function fetchAllData(key: SheetKey, forceRefresh = false): Promise<Record<string, string>[]> {
   const cacheKey = key;
 
-  // 1. Return cached data if available and not forcing refresh
   if (!forceRefresh) {
     const cached = getCached(cacheKey);
     if (cached) {
@@ -527,24 +441,13 @@ export async function fetchAllData(key: SheetKey, forceRefresh = false): Promise
     }
   }
 
-  // 2. Deduplicate in-flight requests
   const inflightKey = cacheKey;
   if (!forceRefresh && inflightRequests.has(inflightKey)) {
     return inflightRequests.get(inflightKey)!;
   }
 
-  // 3. Create the fetch promise
   const fetchPromise = (async (): Promise<Record<string, string>[]> => {
     try {
-      const dataSource = getDataSource();
-      if (dataSource === 'supabase') {
-        const supabaseData = await supabaseRead(key);
-        const normalizedSupabase = normalizeSheetData(key, supabaseData);
-        setCache(cacheKey, normalizedSupabase);
-        return normalizedSupabase;
-      }
-
-      // Try CSV first (usually faster, no cold start)
       const csvData = await fetchCSVData(key);
       if (csvData.length > 0) {
         const normalizedCsv = normalizeSheetData(key, csvData);
@@ -552,7 +455,6 @@ export async function fetchAllData(key: SheetKey, forceRefresh = false): Promise
         return normalizedCsv;
       }
 
-      // Fallback to Apps Script API
       if (isAppsScriptConfigured()) {
         const result = await apiGet(key);
         if (result.success && Array.isArray(result.data)) {
@@ -571,7 +473,6 @@ export async function fetchAllData(key: SheetKey, forceRefresh = false): Promise
     } catch (error) {
       console.error(`Error fetching ${key}:`, error);
 
-      // Return stale cache if available
       const stale = cache.get(cacheKey);
       if (stale) return stale.data;
 
@@ -586,34 +487,13 @@ export async function fetchAllData(key: SheetKey, forceRefresh = false): Promise
 }
 
 /**
- * CREATE - Add new record (always via Apps Script)
+ * CREATE - Add new record (Apps Script)
  */
 export async function createRecord(key: SheetKey, data: Record<string, string>): Promise<{ success: boolean; message: string; data?: Record<string, string> }> {
   const cleanData = { ...data };
   delete cleanData['_id'];
   delete cleanData['_rowIndex'];
   delete cleanData['Timestamp'];
-
-  if (getDataSource() === 'supabase') {
-    try {
-      const created = await supabaseCreate(key, cleanData);
-      invalidateCache(key);
-      if (key === 'kelompokKelas') {
-        invalidateOptionsCache('kelompokKelas');
-      }
-      return {
-        success: true,
-        message: 'Data berhasil ditambahkan (Supabase).',
-        data: {
-          ...created,
-          _id: `sb_${created.id || Date.now()}`,
-          _rowIndex: String(created.row_index || created._rowIndex || ''),
-        },
-      };
-    } catch (error) {
-      return { success: false, message: `Supabase error: ${error instanceof Error ? error.message : 'Unknown error'}` };
-    }
-  }
 
   if (isAppsScriptConfigured()) {
     try {
@@ -624,7 +504,6 @@ export async function createRecord(key: SheetKey, data: Record<string, string>):
       });
 
       if (result.success) {
-        // Invalidate cache so next fetch gets fresh data
         invalidateCache(key);
         if (key === 'kelompokKelas') {
           invalidateOptionsCache('kelompokKelas');
@@ -805,7 +684,6 @@ export function invalidateOptionsCache(sheetKey?: SheetKey) {
 export async function fetchSheetOptions(sheetKey: SheetKey, columnHeader?: string): Promise<string[]> {
   const cacheKey = `options_${sheetKey}_${columnHeader || 'A'}`;
 
-  // Check cache
   const cached = optionsCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < OPTIONS_CACHE_TTL) {
     return cached.data;
@@ -822,15 +700,13 @@ export async function fetchSheetOptions(sheetKey: SheetKey, columnHeader?: strin
 
     if (rows.length < 2) return [];
 
-    // Find column index
     const headers = rows[0].map(h => h.replace(/^"|"$/g, '').trim());
-    let colIndex = 0; // default to first column
+    let colIndex = 0;
     if (columnHeader) {
       const idx = headers.findIndex(h => h.toLowerCase() === columnHeader.toLowerCase());
       if (idx >= 0) colIndex = idx;
     }
 
-    // Extract unique non-empty values from that column (skip header row)
     const options: string[] = [];
     for (let i = 1; i < rows.length; i++) {
       const val = (rows[i][colIndex] || '').replace(/^"|"$/g, '').trim();
@@ -839,12 +715,10 @@ export async function fetchSheetOptions(sheetKey: SheetKey, columnHeader?: strin
       }
     }
 
-    // Cache results
     optionsCache.set(cacheKey, { data: options, timestamp: Date.now() });
     return options;
   } catch (error) {
     console.error(`Error fetching options for ${sheetKey}:`, error);
-    // Return stale cache if available
     const stale = optionsCache.get(cacheKey);
     if (stale) return stale.data;
     return [];

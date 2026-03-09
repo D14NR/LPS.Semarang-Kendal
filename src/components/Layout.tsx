@@ -302,9 +302,9 @@ export default function Layout({ children }: LayoutProps) {
               }`}
             />
             {!sidebarCollapsed && (
-              apiConfigured ? (
+                apiConfigured ? (
                 <span className="flex items-center gap-1">
-                  <Wifi size={12} /> API Connected — CRUD Aktif
+                  <Wifi size={12} /> Google Apps Script — CRUD Aktif
                 </span>
               ) : (
                 'Read-Only Mode'
