@@ -50,6 +50,7 @@ interface CrudPageProps {
   filters?: FilterConfig[];
   autoReplaceKeys?: string[];
   autoFillOnMatch?: boolean;
+  defaultSortKeys?: string[];
 }
 
 type ToastType = 'success' | 'error' | 'warning';
@@ -387,7 +388,7 @@ function MultiSelectCheckbox({
 
 // ===================== CrudPage Component =====================
 
-export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', cabangField = 'Cabang', filters = [], autoReplaceKeys = [], autoFillOnMatch = false }: CrudPageProps) {
+export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', cabangField = 'Cabang', filters = [], autoReplaceKeys = [], autoFillOnMatch = false, defaultSortKeys = [] }: CrudPageProps) {
   const [data, setData] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -594,18 +595,22 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
   }, [filteredData, filters, filterState]);
 
   const dateKeys = useMemo(() => {
-    const keys = fields
-      .filter((f) => f.type === 'date')
-      .map((f) => f.key);
+    const keys = defaultSortKeys.length
+      ? [...defaultSortKeys]
+      : fields
+          .filter((f) => f.type === 'date')
+          .map((f) => f.key);
     const hasTimestamp = fields.some((f) => /timestamp/i.test(f.key));
-    if (hasTimestamp) {
-      keys.push('Timestamp');
+    if (hasTimestamp && !keys.includes('Timestamp')) {
+      keys.unshift('Timestamp');
+    } else if (!keys.includes('Timestamp')) {
+      keys.unshift('Timestamp');
     }
-    if (!keys.includes('Timestamp')) {
-      keys.push('Timestamp');
+    if (!keys.includes('Tanggal')) {
+      keys.push('Tanggal');
     }
     return keys;
-  }, [fields]);
+  }, [fields, defaultSortKeys]);
 
   const sortedData = useMemo(() => {
     const rows = [...filterableData];
@@ -675,88 +680,80 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
         }))
       : importRecords;
 
+    const comparisonKeys = autoReplaceKeys.length
+      ? autoReplaceKeys
+      : fields
+          .map((field) => field.key)
+          .filter((key) => key.toLowerCase() !== 'timestamp');
+
+    const normalizeImportValue = (value: string, key: string) => {
+      const trimmed = String(value || '').trim();
+      if (!trimmed) return '';
+      if (key.toLowerCase().includes('tanggal') || key.toLowerCase().includes('timestamp')) {
+        const parsed = parseDateValue(trimmed);
+        return parsed ? parsed.toISOString().slice(0, 10) : trimmed.toLowerCase();
+      }
+      return trimmed.toLowerCase();
+    };
+
     const normalizeKey = (record: Record<string, string>) =>
-      autoReplaceKeys
-        .map((key) => String(record[key] || '').trim().toLowerCase())
+      comparisonKeys
+        .map((key) => normalizeImportValue(record[key], key))
         .join('|');
 
     const dedupedMap = new Map<string, Record<string, string>>();
     recordsToImport.forEach((record) => {
-      if (autoReplaceKeys.length === 0) {
-        dedupedMap.set(`${Math.random()}`, record);
-        return;
-      }
       const key = normalizeKey(record);
-      if (key) dedupedMap.set(key, record);
+      if (key) {
+        dedupedMap.set(key, record);
+      }
     });
 
     const dedupedRecords = Array.from(dedupedMap.values());
 
-    if (autoReplaceKeys.length > 0) {
-      const existingMap = new Map<string, Record<string, string>>();
-      data.forEach((row) => {
-        const key = normalizeKey(row);
-        if (key) existingMap.set(key, row);
-      });
+    const existingMap = new Map<string, Record<string, string>>();
+    data.forEach((row) => {
+      const key = normalizeKey(row);
+      if (key) existingMap.set(key, row);
+    });
 
-      const toUpdate: Array<{ rowIndex: number; payload: Record<string, string> }> = [];
-      const toCreate: Record<string, string>[] = [];
+    const toCreate: Record<string, string>[] = [];
+    let skipped = 0;
 
-      dedupedRecords.forEach((record) => {
-        const key = normalizeKey(record);
-        const existing = key ? existingMap.get(key) : undefined;
-        if (existing && existing['_rowIndex']) {
-          const rowIndex = parseInt(existing['_rowIndex'] || '0', 10);
-          if (rowIndex >= 2) {
-            toUpdate.push({ rowIndex, payload: record });
-            return;
-          }
+    const toUpdate: { rowIndex: number; data: Record<string, string> }[] = [];
+
+    dedupedRecords.forEach((record) => {
+      const key = normalizeKey(record);
+      const existing = key ? existingMap.get(key) : undefined;
+      if (existing && existing['_rowIndex']) {
+        const rowIndex = parseInt(existing['_rowIndex'] || '0', 10);
+        if (rowIndex >= 2) {
+          toUpdate.push({ rowIndex, data: record });
+          return;
         }
-        toCreate.push(record);
-      });
-
-      const updateResults = await Promise.all(
-        toUpdate.map(async (item) => updateRecord(sheetKey, item.rowIndex, item.payload))
-      );
-      const updateFailures = updateResults.filter((res) => !res.success);
-
-      let createResult = { success: true, message: 'OK', totalAdded: 0 } as {
-        success: boolean;
-        message: string;
-        totalAdded?: number;
-      };
-      if (toCreate.length > 0) {
-        createResult = await createBulkRecords(sheetKey, toCreate);
       }
+      toCreate.push(record);
+    });
 
-      if (updateFailures.length === 0 && createResult.success) {
-        const totalAdded = createResult.totalAdded || toCreate.length;
-        showToast('success', `✅ Import selesai: ${toUpdate.length} diperbarui, ${totalAdded} ditambahkan.`);
-        setImportOpen(false);
-        setImportRecords([]);
-        setImportPreview([]);
-        await loadData(true);
-      } else {
-        const errorMessage = updateFailures.length
-          ? updateFailures[0].message
-          : createResult.message;
-        setImportError(errorMessage || 'Terjadi kesalahan saat import.');
-      }
-
+    if (toCreate.length === 0 && toUpdate.length === 0) {
       setImportLoading(false);
+      showToast('warning', `Tidak ada data baru. ${skipped} data sudah ada dan dilewati.`);
       return;
     }
 
-    const result = await createBulkRecords(sheetKey, dedupedRecords);
-    if (result.success) {
-      showToast('success', `✅ ${result.totalAdded || dedupedRecords.length} data berhasil diimport!`);
+    const createResult = await createBulkRecords(sheetKey, toCreate);
+
+    if (createResult.success) {
+      const totalAdded = createResult.totalAdded || toCreate.length;
+      showToast('success', `✅ Import selesai: ${totalAdded} ditambahkan, ${skipped} dilewati (sudah ada).`);
       setImportOpen(false);
       setImportRecords([]);
       setImportPreview([]);
       await loadData(true);
     } else {
-      setImportError(result.message);
+      setImportError(createResult.message);
     }
+
     setImportLoading(false);
   };
 

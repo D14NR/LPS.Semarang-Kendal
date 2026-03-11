@@ -28,6 +28,7 @@ export default function NilaiUtbk() {
       modalSize="lg"
       autoReplaceKeys={['Nis', 'Tanggal', 'Jenis Tes', 'Cabang']}
       autoFillOnMatch
+      defaultSortKeys={['Timestamp', 'Tanggal']}
     />
   );
 }

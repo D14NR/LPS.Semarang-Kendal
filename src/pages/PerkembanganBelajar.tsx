@@ -526,9 +526,50 @@ export default function PerkembanganBelajar() {
         }))
       : importRecords;
 
-    const result = await createBulkRecords('perkembangan', recordsToImport);
+    const normalizeKey = (record: Record<string, string>) =>
+      [
+        record['Nis'],
+        record['Tanggal'],
+        record['Mata Pelajaran'],
+        record['Cabang'],
+      ]
+        .map((value) => String(value || '').trim().toLowerCase())
+        .join('|');
+
+    const dedupedMap = new Map<string, Record<string, string>>();
+    recordsToImport.forEach((record) => {
+      const key = normalizeKey(record);
+      if (key) dedupedMap.set(key, record);
+    });
+    const dedupedRecords = Array.from(dedupedMap.values());
+
+    const existingMap = new Map<string, Record<string, string>>();
+    perkembanganData.forEach((row) => {
+      const key = normalizeKey(row);
+      if (key) existingMap.set(key, row);
+    });
+
+    const toCreate: Record<string, string>[] = [];
+    let skipped = 0;
+
+    dedupedRecords.forEach((record) => {
+      const key = normalizeKey(record);
+      if (key && existingMap.has(key)) {
+        skipped += 1;
+        return;
+      }
+      toCreate.push(record);
+    });
+
+    if (toCreate.length === 0) {
+      setImportLoading(false);
+      showToast('warning', `Tidak ada data baru. ${skipped} data sudah ada dan dilewati.`);
+      return;
+    }
+
+    const result = await createBulkRecords('perkembangan', toCreate);
     if (result.success) {
-      showToast('success', `✅ ${result.totalAdded || recordsToImport.length} data berhasil diimport!`);
+      showToast('success', `✅ ${result.totalAdded || toCreate.length} data ditambahkan, ${skipped} dilewati.`);
       setImportOpen(false);
       setImportRecords([]);
       setImportPreview([]);

@@ -48,6 +48,8 @@ const statusOptions = [
   { key: 'A', label: 'Alpha', value: 'Alpha', color: 'bg-red-100 text-red-700 border-red-200' },
 ];
 
+const inputStatusOptions = statusOptions.filter((option) => option.value !== 'Alpha');
+
 const formatDateDisplay = (value: string): string => {
   if (!value) return '-';
   const parsed = new Date(value);
@@ -241,7 +243,10 @@ export default function PresensiSiswa() {
     [filteredSiswa, currentPage, perPage]
   );
 
-  const selectedCount = useMemo(() => Object.values(statusMap).filter(Boolean).length, [statusMap]);
+    const selectedCount = useMemo(
+      () => filteredSiswa.filter((row) => statusMap[row['Nis']]).length,
+      [filteredSiswa, statusMap]
+    );
 
   const toggleStatus = (nis: string, status: string) => {
     setStatusMap((prev) => {
@@ -283,20 +288,18 @@ export default function PresensiSiswa() {
       showToast('warning', 'Lengkapi Tanggal, Mata Pelajaran, Cabang, dan Kelompok Kelas.');
       return;
     }
-    const records = filteredSiswa
-      .filter((row) => statusMap[row['Nis']])
-      .map((row) => ({
-        Nis: row['Nis'] || '',
-        Nama: row['Nama'] || '',
-        Tanggal: tanggal,
-        Kelas: kelompokKelas,
-        'Mata Pelajaran': mataPelajaran,
-        Status: statusMap[row['Nis']],
-        Cabang: effectiveCabang || row['Cabang'] || '',
-      }));
+    const records = filteredSiswa.map((row) => ({
+      Nis: row['Nis'] || '',
+      Nama: row['Nama'] || '',
+      Tanggal: tanggal,
+      Kelas: kelompokKelas,
+      'Mata Pelajaran': mataPelajaran,
+      Status: statusMap[row['Nis']] || 'Alpha',
+      Cabang: effectiveCabang || row['Cabang'] || '',
+    }));
 
     if (records.length === 0) {
-      showToast('warning', 'Tidak ada siswa yang dicentang.');
+      showToast('warning', 'Tidak ada siswa yang tersedia untuk disimpan.');
       return;
     }
 
@@ -416,9 +419,51 @@ export default function PresensiSiswa() {
         }))
       : importRecords;
 
-    const result = await createBulkRecords('presensi', recordsToImport);
+    const normalizeKey = (record: Record<string, string>) =>
+      [
+        record['Nis'],
+        record['Tanggal'],
+        record['Mata Pelajaran'],
+        record['Kelas'],
+        record['Cabang'],
+      ]
+        .map((value) => String(value || '').trim().toLowerCase())
+        .join('|');
+
+    const dedupedMap = new Map<string, Record<string, string>>();
+    recordsToImport.forEach((record) => {
+      const key = normalizeKey(record);
+      if (key) dedupedMap.set(key, record);
+    });
+    const dedupedRecords = Array.from(dedupedMap.values());
+
+    const existingMap = new Map<string, Record<string, string>>();
+    presensiData.forEach((row) => {
+      const key = normalizeKey(row);
+      if (key) existingMap.set(key, row);
+    });
+
+    const toCreate: Record<string, string>[] = [];
+    let skipped = 0;
+
+    dedupedRecords.forEach((record) => {
+      const key = normalizeKey(record);
+      if (key && existingMap.has(key)) {
+        skipped += 1;
+        return;
+      }
+      toCreate.push(record);
+    });
+
+    if (toCreate.length === 0) {
+      setImportLoading(false);
+      showToast('warning', `Tidak ada data baru. ${skipped} data sudah ada dan dilewati.`);
+      return;
+    }
+
+    const result = await createBulkRecords('presensi', toCreate);
     if (result.success) {
-      showToast('success', `✅ ${result.totalAdded || recordsToImport.length} data berhasil diimport!`);
+      showToast('success', `✅ ${result.totalAdded || toCreate.length} data ditambahkan, ${skipped} dilewati.`);
       setImportOpen(false);
       setImportRecords([]);
       setImportPreview([]);
@@ -814,7 +859,7 @@ export default function PresensiSiswa() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-3">
                   <p className="text-sm text-gray-600">
-                    Total siswa: <strong>{filteredSiswa.length}</strong> • Dicentang: <strong>{selectedCount}</strong>
+                    Total siswa: <strong>{filteredSiswa.length}</strong> • Dicentang: <strong>{selectedCount}</strong> • Alpha otomatis: <strong>{Math.max(0, filteredSiswa.length - selectedCount)}</strong>
                   </p>
                   <div className="relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -829,7 +874,7 @@ export default function PresensiSiswa() {
                 </div>
                 <button
                   onClick={handleSubmitPresensi}
-                  disabled={submitting || selectedCount === 0}
+                  disabled={submitting || filteredSiswa.length === 0}
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-all shadow-md disabled:opacity-50"
                 >
                   <Save size={16} />
@@ -843,7 +888,7 @@ export default function PresensiSiswa() {
                     <tr className="bg-gray-50 border-b border-gray-200">
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">NIS</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nama</th>
-                      {statusOptions.map((opt) => (
+                      {inputStatusOptions.map((opt) => (
                         <th key={opt.key} className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">{opt.label}</th>
                       ))}
                     </tr>
@@ -860,7 +905,7 @@ export default function PresensiSiswa() {
                         <tr key={row['Nis']} className="hover:bg-blue-50/50">
                           <td className="px-4 py-3 text-gray-700 font-medium">{row['Nis']}</td>
                           <td className="px-4 py-3 text-gray-700">{row['Nama']}</td>
-                          {statusOptions.map((opt) => {
+                          {inputStatusOptions.map((opt) => {
                             const isSelected = statusMap[row['Nis']] === opt.value;
                             return (
                               <td key={opt.key} className="px-4 py-3 text-center">
