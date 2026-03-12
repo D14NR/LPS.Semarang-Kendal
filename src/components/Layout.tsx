@@ -304,7 +304,7 @@ export default function Layout({ children }: LayoutProps) {
             {!sidebarCollapsed && (
                 apiConfigured ? (
                 <span className="flex items-center gap-1">
-                  <Wifi size={12} /> Database — CRUD Aktif
+                  <Wifi size={12} /> Database sudah terhubung
                 </span>
               ) : (
                 'Read-Only Mode'
@@ -356,7 +356,7 @@ export default function Layout({ children }: LayoutProps) {
                   apiConfigured ? 'bg-green-500' : 'bg-amber-500 animate-pulse'
                 }`}
               />
-              {apiConfigured ? 'CRUD Aktif' : 'Read-Only'}
+              {apiConfigured ? 'Database sudah terhubung' : 'Read-Only'}
             </div>
             {/* User Avatar */}
             {user && (

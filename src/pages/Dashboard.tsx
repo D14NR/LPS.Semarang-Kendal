@@ -212,8 +212,8 @@ export default function Dashboard() {
             <CheckCircle size={20} className="text-green-600" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-green-800">Database Sudah Terhubung — Mode CRUD Aktif</p>
-            <p className="text-xs text-green-600 mt-0.5">Semua operasi Create, Read, Update, Delete terhubung langsung ke server database.</p>
+            <p className="text-sm font-semibold text-green-800">Database Sudah Terhubung</p>
+            <p className="text-xs text-green-600 mt-0.5">Semua operasi data terhubung langsung ke server database.</p>
           </div>
           <Activity size={20} className="text-green-400 animate-pulse flex-shrink-0" />
         </div>

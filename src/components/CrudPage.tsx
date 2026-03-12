@@ -25,10 +25,16 @@ interface FieldConfig {
   canCreateOption?: boolean;
   createOptionLabel?: string;
   required?: boolean;
+  readOnly?: boolean;
   width?: string;
   render?: (value: string, row: Record<string, string>) => React.ReactNode;
   hideInForm?: boolean;
   colSpan?: number;
+  onValueChange?: (
+    value: string,
+    formData: Record<string, string>,
+    setFormData: React.Dispatch<React.SetStateAction<Record<string, string>>>,
+  ) => void;
 }
 
 interface FilterConfig {
@@ -1322,10 +1328,13 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
                     <div className="space-y-2">
                       <SearchableSelect
                         value={formData[field.key] || ''}
-                        onChange={(val) => setFormData((prev) => ({ ...prev, [field.key]: val }))}
+                        onChange={(val) => {
+                          setFormData((prev) => ({ ...prev, [field.key]: val }));
+                          field.onValueChange?.(val, formData, setFormData);
+                        }}
                         options={field.options || []}
                         placeholder={`Pilih ${field.label}`}
-                        disabled={!!isCabangFieldForNonAdmin}
+                        disabled={!!isCabangFieldForNonAdmin || field.readOnly}
                       />
                       {field.required && (
                         <input
@@ -1352,9 +1361,9 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
                       value={formData[field.key] || ''}
                       onChange={(e) => setFormData((prev) => ({ ...prev, [field.key]: e.target.value }))}
                       required={field.required}
-                      readOnly={!!isCabangFieldForNonAdmin}
+                      readOnly={!!isCabangFieldForNonAdmin || field.readOnly}
                       className={`w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${
-                        isCabangFieldForNonAdmin ? 'bg-gray-100 cursor-not-allowed' : ''
+                        isCabangFieldForNonAdmin || field.readOnly ? 'bg-gray-100 cursor-not-allowed' : ''
                       }`}
                     />
                   )}

@@ -93,7 +93,7 @@ export default function Pengaturan() {
   const steps = [
     {
       num: 1,
-      title: 'Buka Server Database (Apps Script)',
+      title: 'Buka Server Database',
       icon: <Code size={18} />,
       content: (
         <div className="space-y-3">
@@ -101,7 +101,7 @@ export default function Pengaturan() {
             Buka layanan server database dan siapkan project Web App, atau buka project yang sudah ada.
           </p>
           <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-500">
-            Pastikan Anda login menggunakan akun Google yang memiliki akses ke semua spreadsheet.
+            Pastikan Anda login menggunakan akun Google yang memiliki akses ke server database.
           </div>
         </div>
       ),
