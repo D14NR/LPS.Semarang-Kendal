@@ -115,8 +115,8 @@ const formatDateDisplay = (value: string, withTime = false): string => {
   const date = parseDateValue(value);
   if (!date) return '';
   const options: Intl.DateTimeFormatOptions = withTime
-    ? { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }
-    : { day: '2-digit', month: '2-digit', year: 'numeric' };
+    ? { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+    : { day: '2-digit', month: 'short', year: 'numeric' };
   return new Intl.DateTimeFormat('id-ID', options).format(date);
 };
 

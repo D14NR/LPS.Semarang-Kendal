@@ -45,7 +45,7 @@ var SPREADSHEET_CONFIG = {
     headers: ['Nis', 'Nama', 'Tanggal', 'Mata Pelajaran', 'Materi', 'Penguasaan', 'Penjelasan', 'Kondisi', 'Catatan', 'Cabang', 'Timestamp']
   },
   nilaiUtbk: {
-    spreadsheetId: '1yb_UoQKe3tgbbTmnfYUFQiNQLe9NGdWsE-fzVLGthmw',
+    spreadsheetId: '1DKI84nBDAc8d3W7UQRP6f713AxqAJv1YVeZOhyso1qg',
     sheetName: 'Nilai UTBK',
     headers: ['Nis', 'Nama Siswa', 'Tanggal', 'Jenis Tes', 'PU', 'PPU', 'PBM', 'PK', 'LIB', 'LING', 'PM', 'Rerata', 'Total', 'Cabang', 'Timestamp']
   },

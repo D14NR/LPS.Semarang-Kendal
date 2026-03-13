@@ -37,7 +37,7 @@ const parseDateValue = (value: string): Date | null => {
 const formatDate = (value: string) => {
   const parsed = parseDateValue(value);
   if (!parsed) return value || '-';
-  return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(parsed);
+  return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(parsed);
 };
 
 const withinRange = (value: string, start?: Date | null, end?: Date | null) => {

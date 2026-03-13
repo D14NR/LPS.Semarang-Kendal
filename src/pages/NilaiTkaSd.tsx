@@ -77,10 +77,23 @@ const fields = [
   ...subjectFields.map((s) => ({
     key: s,
     label: s,
-    type: 'number' as const,
+    type: 'text' as const,
+    onValueChange: (
+      value: string,
+      form: Record<string, string>,
+      setFormData: React.Dispatch<React.SetStateAction<Record<string, string>>>
+    ) => {
+      const scores = calculateScores({ ...form, [s]: value });
+      setFormData((prev) => ({
+        ...prev,
+        [s]: value,
+        Rerata: scores.rerata,
+        Total: scores.total,
+      }));
+    },
   })),
-  { key: 'Rerata', label: 'Rerata', type: 'number' as const },
-  { key: 'Total', label: 'Total', type: 'number' as const },
+  { key: 'Rerata', label: 'Rerata', type: 'text' as const, readOnly: true },
+  { key: 'Total', label: 'Total', type: 'text' as const, readOnly: true },
   { key: 'Cabang', label: 'Cabang' },
 ];
 
@@ -109,6 +122,7 @@ export default function NilaiTkaSd() {
       sheetKey="nilaiTkaSd"
       fields={resolvedFields}
       modalSize="lg"
+      addLabel="Tambah Nilai TKA SD"
       autoReplaceKeys={['Nis', 'Tanggal', 'Jenis Tes', 'Cabang']}
       autoFillOnMatch
     />

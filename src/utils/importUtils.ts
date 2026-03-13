@@ -14,15 +14,12 @@ const normalizeHeader = (value: string) =>
     .replace(/[^a-z0-9]/gi, '')
     .trim();
 
-const pad2 = (value: number) => String(value).padStart(2, '0');
-
-const formatDateDDMMYYYY = (date: Date) =>
-  `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()}`;
+import { formatDateIndo, parseIndoDateString } from './dateUtils';
 
 const excelSerialToDateString = (serial: number): string => {
   const utcDays = Math.floor(serial - 25569);
   const date = new Date(utcDays * 86400 * 1000);
-  return Number.isNaN(date.getTime()) ? '' : formatDateDDMMYYYY(date);
+  return Number.isNaN(date.getTime()) ? '' : formatDateIndo(date);
 };
 
 export interface ParseResult {

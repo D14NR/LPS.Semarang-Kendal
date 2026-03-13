@@ -65,6 +65,7 @@ export default function NilaiEvaluasi() {
       sheetKey="nilaiEvaluasi"
       fields={resolvedFields}
       modalSize="lg"
+      addLabel="Tambah Nilai Evaluasi"
       autoReplaceKeys={['Nis', 'Tanggal', 'Jenis Tes', 'Mata Pelajaran', 'Cabang']}
       autoFillOnMatch
     />

@@ -23,11 +23,11 @@ const SPREADSHEET_CONFIG = {
     sheet: 'Perkembangan',
   },
   nilaiUtbk: {
-    id: '1yb_UoQKe3tgbbTmnfYUFQiNQLe9NGdWsE-fzVLGthmw',
+    id: '1DKI84nBDAc8d3W7UQRP6f713AxqAJv1YVeZOhyso1qg',
     sheet: 'Nilai UTBK',
   },
   nilaiTkaSma: {
-    id: '1yb_UoQKe3tgbbTmnfYUFQiNQLe9NGdWsE-fzVLGthmw',
+    id: '1Wbx_ZuKCOeH1Ed8yxIn-jDkwmP7ZS4p1Sn7kOhWaDVM',
     sheet: 'Nilai TKA SMA',
   },
   nilaiTkaSmp: {
@@ -35,7 +35,7 @@ const SPREADSHEET_CONFIG = {
     sheet: 'Nilai TKA SMP',
   },
   nilaiTkaSd: {
-    id: '1yb_UoQKe3tgbbTmnfYUFQiNQLe9NGdWsE-fzVLGthmw',
+    id: '1KWZfvlxVkXJGs4yCwOIIHFU92z11AMF7YWIrCMbkGjQ',
     sheet: 'Nilai TKA SD',
   },
   nilaiEvaluasi: {
