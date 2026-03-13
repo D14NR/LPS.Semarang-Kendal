@@ -57,6 +57,7 @@ interface CrudPageProps {
   autoReplaceKeys?: string[];
   autoFillOnMatch?: boolean;
   defaultSortKeys?: string[];
+  addLabel?: string;
 }
 
 type ToastType = 'success' | 'error' | 'warning';
@@ -394,7 +395,7 @@ function MultiSelectCheckbox({
 
 // ===================== CrudPage Component =====================
 
-export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', cabangField = 'Cabang', filters = [], autoReplaceKeys = [], autoFillOnMatch = false, defaultSortKeys = [] }: CrudPageProps) {
+export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', cabangField = 'Cabang', filters = [], autoReplaceKeys = [], autoFillOnMatch = false, defaultSortKeys = [], addLabel }: CrudPageProps) {
   const [data, setData] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -628,7 +629,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
 
   const handleOpenImport = () => {
     if (!apiConfigured) {
-      showToast('warning', 'Apps Script belum dikonfigurasi.');
+      showToast('warning', 'Database belum terhubung.');
       return;
     }
     setImportError('');
@@ -670,7 +671,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
 
   const handleImportSubmit = async () => {
     if (!apiConfigured) {
-      showToast('warning', 'Apps Script belum dikonfigurasi.');
+      showToast('warning', 'Database belum terhubung.');
       return;
     }
     if (importRecords.length === 0) {
@@ -726,22 +727,16 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     const toCreate: Record<string, string>[] = [];
     let skipped = 0;
 
-    const toUpdate: { rowIndex: number; data: Record<string, string> }[] = [];
-
     dedupedRecords.forEach((record) => {
       const key = normalizeKey(record);
-      const existing = key ? existingMap.get(key) : undefined;
-      if (existing && existing['_rowIndex']) {
-        const rowIndex = parseInt(existing['_rowIndex'] || '0', 10);
-        if (rowIndex >= 2) {
-          toUpdate.push({ rowIndex, data: record });
-          return;
-        }
+      if (key && existingMap.has(key)) {
+        skipped += 1;
+        return;
       }
       toCreate.push(record);
     });
 
-    if (toCreate.length === 0 && toUpdate.length === 0) {
+    if (toCreate.length === 0) {
       setImportLoading(false);
       showToast('warning', `Tidak ada data baru. ${skipped} data sudah ada dan dilewati.`);
       return;
@@ -1115,7 +1110,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
             }`}
           >
             <Plus size={16} />
-            Tambah Data
+            {addLabel || 'Tambah Data'}
           </button>
         </div>
       </div>
@@ -1329,8 +1324,9 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
                       <SearchableSelect
                         value={formData[field.key] || ''}
                         onChange={(val) => {
+                          const nextForm = { ...formData, [field.key]: val };
                           setFormData((prev) => ({ ...prev, [field.key]: val }));
-                          field.onValueChange?.(val, formData, setFormData);
+                          field.onValueChange?.(val, nextForm, setFormData);
                         }}
                         options={field.options || []}
                         placeholder={`Pilih ${field.label}`}
@@ -1350,7 +1346,12 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
                   ) : field.type === 'textarea' ? (
                     <textarea
                       value={formData[field.key] || ''}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                      onChange={(e) => {
+                        const nextValue = e.target.value;
+                        const nextForm = { ...formData, [field.key]: nextValue };
+                        setFormData((prev) => ({ ...prev, [field.key]: nextValue }));
+                        field.onValueChange?.(nextValue, nextForm, setFormData);
+                      }}
                       required={field.required}
                       rows={3}
                       className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
@@ -1359,7 +1360,12 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
                     <input
                       type={field.type || 'text'}
                       value={formData[field.key] || ''}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                      onChange={(e) => {
+                        const nextValue = e.target.value;
+                        const nextForm = { ...formData, [field.key]: nextValue };
+                        setFormData((prev) => ({ ...prev, [field.key]: nextValue }));
+                        field.onValueChange?.(nextValue, nextForm, setFormData);
+                      }}
                       required={field.required}
                       readOnly={!!isCabangFieldForNonAdmin || field.readOnly}
                       className={`w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all ${

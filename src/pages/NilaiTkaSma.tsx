@@ -7,6 +7,37 @@ const subjectFields = [
   'GEO', 'SEJ', 'SOS', 'EKO', 'PP', 'PKWU', 'IND TL', 'ING TL',
 ];
 
+const parseScore = (value: string) => {
+  if (!value) return null;
+  const normalized = value.replace(',', '.');
+  const num = parseFloat(normalized);
+  return Number.isNaN(num) ? null : num;
+};
+
+const formatScore = (value: number | null) => {
+  if (value === null) return '';
+  const rounded = Math.round(value * 100) / 100;
+  const str = rounded.toString();
+  return str.includes('.') ? str.replace('.', ',') : str;
+};
+
+const calculateScores = (form: Record<string, string>) => {
+  let total = 0;
+  let count = 0;
+  subjectFields.forEach((key) => {
+    const num = parseScore(form[key] || '');
+    if (num !== null) {
+      total += num;
+      count += 1;
+    }
+  });
+  const rerata = count > 0 ? total / count : null;
+  return {
+    total: formatScore(count > 0 ? total : null),
+    rerata: formatScore(rerata),
+  };
+};
+
 type StudentRow = Record<string, string>;
 
 const studentOption = (row: StudentRow): string => {
@@ -49,10 +80,23 @@ const fields = [
   ...subjectFields.map((s) => ({
     key: s,
     label: s,
-    type: 'number' as const,
+    type: 'text' as const,
+    onValueChange: (
+      value: string,
+      form: Record<string, string>,
+      setFormData: React.Dispatch<React.SetStateAction<Record<string, string>>>
+    ) => {
+      const scores = calculateScores({ ...form, [s]: value });
+      setFormData((prev) => ({
+        ...prev,
+        [s]: value,
+        Rerata: scores.rerata,
+        Total: scores.total,
+      }));
+    },
   })),
-  { key: 'Rerata', label: 'Rerata', type: 'number' as const },
-  { key: 'Total', label: 'Total', type: 'number' as const },
+  { key: 'Rerata', label: 'Rerata', type: 'text' as const, readOnly: true },
+  { key: 'Total', label: 'Total', type: 'text' as const, readOnly: true },
   { key: 'Cabang', label: 'Cabang' },
 ];
 
@@ -81,6 +125,7 @@ export default function NilaiTkaSma() {
       sheetKey="nilaiTkaSma"
       fields={resolvedFields}
       modalSize="xl"
+      addLabel="Tambah Nilai TKA SMA"
       autoReplaceKeys={['Nis', 'Tanggal', 'Jenis Tes', 'Cabang']}
       autoFillOnMatch
     />
