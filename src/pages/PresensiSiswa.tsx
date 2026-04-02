@@ -40,6 +40,7 @@ import {
 } from '../services/googleSheets';
 import { parseSpreadsheetFile, generateTemplateWorkbook, exportRecordsWorkbook } from '../utils/importUtils';
 import { useAuth } from '../contexts/AuthContext';
+import { normalizeDateForStorage } from '../utils/dateUtils';
 
 const statusOptions = [
   { key: 'H', label: 'Hadir', value: 'Hadir', color: 'bg-green-100 text-green-700 border-green-200' },
@@ -48,7 +49,7 @@ const statusOptions = [
   { key: 'A', label: 'Alpha', value: 'Alpha', color: 'bg-red-100 text-red-700 border-red-200' },
 ];
 
-const inputStatusOptions = statusOptions.filter((opt) => opt.value !== 'Alpha');
+const inputStatusOptions = statusOptions;
 
 const formatDateDisplay = (value: string): string => {
   if (!value) return '-';
@@ -181,14 +182,14 @@ export default function PresensiSiswa() {
       return;
     }
 
-    const normalizedDate = tanggal.trim();
+    const normalizedDate = normalizeDateForStorage(tanggal.trim());
     const normalizedMapel = mataPelajaran.trim().toLowerCase();
     const normalizedKelas = kelompokKelas.trim().toLowerCase();
     const normalizedCabang = (effectiveCabang || '').trim().toLowerCase();
 
     const nextStatus: Record<string, string> = {};
     presensiData.forEach((row) => {
-      const rowDate = (row['Tanggal'] || '').trim();
+      const rowDate = normalizeDateForStorage((row['Tanggal'] || '').trim());
       const rowMapel = (row['Mata Pelajaran'] || '').trim().toLowerCase();
       const rowKelas = (row['Kelas'] || '').trim().toLowerCase();
       const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
@@ -293,7 +294,7 @@ export default function PresensiSiswa() {
       .map((row) => ({
         Nis: row['Nis'] || '',
         Nama: row['Nama'] || '',
-        Tanggal: tanggal,
+        Tanggal: normalizeDateForStorage(tanggal),
         Kelas: kelompokKelas,
         'Mata Pelajaran': mataPelajaran,
         Status: statusMap[row['Nis']],
