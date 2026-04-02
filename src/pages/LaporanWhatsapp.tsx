@@ -23,14 +23,59 @@ const parseDateValue = (value: string): Date | null => {
   }
   const direct = new Date(value);
   if (!Number.isNaN(direct.getTime())) return direct;
-  const match = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-  if (match) {
-    const day = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10) - 1;
-    const year = parseInt(match[3], 10) < 100 ? 2000 + parseInt(match[3], 10) : parseInt(match[3], 10);
+
+  const slashMatch = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (slashMatch) {
+    const day = parseInt(slashMatch[1], 10);
+    const month = parseInt(slashMatch[2], 10) - 1;
+    const year = parseInt(slashMatch[3], 10) < 100 ? 2000 + parseInt(slashMatch[3], 10) : parseInt(slashMatch[3], 10);
     const date = new Date(year, month, day);
     return Number.isNaN(date.getTime()) ? null : date;
   }
+
+  const monthMap: Record<string, number> = {
+    jan: 0,
+    januari: 0,
+    feb: 1,
+    februari: 1,
+    mar: 2,
+    maret: 2,
+    apr: 3,
+    april: 3,
+    mei: 4,
+    may: 4,
+    jun: 5,
+    juni: 5,
+    jul: 6,
+    juli: 6,
+    aug: 7,
+    agu: 7,
+    ags: 7,
+    agustus: 7,
+    sep: 8,
+    september: 8,
+    okt: 9,
+    oktober: 9,
+    oct: 9,
+    nov: 10,
+    november: 10,
+    des: 11,
+    desember: 11,
+    dec: 11,
+  };
+
+  const nameMatch = value.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{2,4})$/);
+  if (nameMatch) {
+    const day = parseInt(nameMatch[1], 10);
+    const monthKey = nameMatch[2].toLowerCase();
+    const month = monthMap[monthKey];
+    const year = parseInt(nameMatch[3], 10) < 100 ? 2000 + parseInt(nameMatch[3], 10) : parseInt(nameMatch[3], 10);
+    if (month !== undefined) {
+      const date = new Date(year, month, day);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+  }
+
   return null;
 };
 
@@ -251,6 +296,7 @@ export default function LaporanWhatsapp() {
       sakit: 'Sakit',
       a: 'Alpha',
       alpha: 'Alpha',
+      alpa: 'Alpha',
     };
 
     const absensiMap = new Map<
@@ -399,6 +445,7 @@ export default function LaporanWhatsapp() {
       sakit: 'Sakit',
       a: 'Alpha',
       alpha: 'Alpha',
+      alpa: 'Alpha',
     };
 
     const presensiCounts = presensiFiltered.reduce(
