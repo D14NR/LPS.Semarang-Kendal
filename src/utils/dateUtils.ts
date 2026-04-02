@@ -79,3 +79,10 @@ export const normalizeDateInput = (value: string): string => {
   if (!parsed) return value;
   return formatDateIndo(parsed, false);
 };
+
+export const normalizeDateForStorage = (value: string): string => {
+  if (!value) return '';
+  const parsed = parseIndoDateString(value);
+  if (!parsed) return value;
+  return formatDateIndo(parsed, false);
+};

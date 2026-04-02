@@ -14,14 +14,22 @@ import {
   type SheetKey,
 } from '../services/googleSheets';
 import { parseSpreadsheetFile, generateTemplateWorkbook, exportRecordsWorkbook } from '../utils/importUtils';
+import { normalizeDateForStorage } from '../utils/dateUtils';
 import { useAuth } from '../contexts/AuthContext';
+
+interface AsyncOptionsContext {
+  formData: Record<string, string>;
+  user?: { isAdmin: boolean; cabang?: string | null } | null;
+  filterState?: Record<string, string>;
+  cabangField?: string;
+}
 
 interface FieldConfig {
   key: string;
   label: string;
   type?: 'text' | 'date' | 'email' | 'tel' | 'number' | 'select' | 'textarea' | 'multiselect-checkbox';
   options?: string[];
-  asyncOptions?: () => Promise<string[]>;
+  asyncOptions?: (context: AsyncOptionsContext) => Promise<string[]>;
   canCreateOption?: boolean;
   createOptionLabel?: string;
   required?: boolean;
@@ -42,7 +50,7 @@ interface FilterConfig {
   label: string;
   placeholder?: string;
   options?: string[];
-  asyncOptions?: () => Promise<string[]>;
+  asyncOptions?: (context: AsyncOptionsContext) => Promise<string[]>;
   mode?: 'exact' | 'includes';
   searchable?: boolean;
 }
@@ -501,6 +509,8 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
       setFilterOptionsLoading((prev) => ({ ...prev, ...loadingState }));
     }
 
+    const context = { formData, user, filterState, cabangField };
+
     await Promise.all(
       filters.map(async (filter) => {
         if (!filter.asyncOptions) {
@@ -510,7 +520,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
           return;
         }
         try {
-          const options = await filter.asyncOptions();
+          const options = await filter.asyncOptions(context);
           setFilterOptionsMap((prev) => ({ ...prev, [filter.key]: options }));
         } catch (err) {
           console.error(`Failed to load filter options for ${filter.key}:`, err);
@@ -520,7 +530,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
         }
       })
     );
-  }, [filters]);
+  }, [filters, formData, user, filterState, cabangField]);
 
   const filterOptionsFilteredByCabang = useMemo(() => {
     if (!filters.length) return filterOptionsMap;
@@ -758,29 +768,43 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     setImportLoading(false);
   };
 
+  const buildAsyncContext = useCallback(
+    (override?: Partial<AsyncOptionsContext>): AsyncOptionsContext => ({
+      formData,
+      user,
+      filterState,
+      cabangField,
+      ...override,
+    }),
+    [formData, user, filterState, cabangField]
+  );
+
   // Load async options when modal opens
   const loadAsyncOptions = useCallback(async () => {
-    const asyncFields = fields.filter(f => f.type === 'multiselect-checkbox' && f.asyncOptions);
+    const asyncFields = fields.filter((f) => f.type === 'multiselect-checkbox' && f.asyncOptions);
     if (asyncFields.length === 0) return;
 
     const loadingState: Record<string, boolean> = {};
-    asyncFields.forEach(f => { loadingState[f.key] = true; });
-    setAsyncOptionsLoading(prev => ({ ...prev, ...loadingState }));
+    asyncFields.forEach((f) => {
+      loadingState[f.key] = true;
+    });
+    setAsyncOptionsLoading((prev) => ({ ...prev, ...loadingState }));
 
+    const context = buildAsyncContext();
     await Promise.all(
       asyncFields.map(async (field) => {
         try {
-          const options = await field.asyncOptions!();
-          setAsyncOptionsMap(prev => ({ ...prev, [field.key]: options }));
+          const options = await field.asyncOptions!(context);
+          setAsyncOptionsMap((prev) => ({ ...prev, [field.key]: options }));
         } catch (err) {
           console.error(`Failed to load options for ${field.key}:`, err);
-          setAsyncOptionsMap(prev => ({ ...prev, [field.key]: field.options || [] }));
+          setAsyncOptionsMap((prev) => ({ ...prev, [field.key]: field.options || [] }));
         } finally {
-          setAsyncOptionsLoading(prev => ({ ...prev, [field.key]: false }));
+          setAsyncOptionsLoading((prev) => ({ ...prev, [field.key]: false }));
         }
       })
     );
-  }, [fields]);
+  }, [fields, buildAsyncContext]);
 
   const openAddModal = () => {
     if (!isAppsScriptConfigured()) {
@@ -855,11 +879,22 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     setViewModal(true);
   };
 
+  const preparePayload = (payload: Record<string, string>) => {
+    const next = { ...payload };
+    fields.forEach((field) => {
+      if (field.type === 'date' && next[field.key]) {
+        next[field.key] = normalizeDateForStorage(next[field.key]);
+      }
+    });
+    return next;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
 
     try {
+      const payload = preparePayload(formData);
       if (editingRecord) {
         const rowIndex = parseInt(editingRecord['_rowIndex'] || '0');
         if (rowIndex < 2) {
@@ -867,7 +902,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
           setSubmitting(false);
           return;
         }
-        const result = await updateRecord(sheetKey, rowIndex, formData);
+        const result = await updateRecord(sheetKey, rowIndex, payload);
         if (result.success) {
           showToast('success', '✅ Data berhasil diperbarui!');
           setModalOpen(false);
@@ -886,7 +921,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
           if (match && match['_rowIndex']) {
             const rowIndex = parseInt(match['_rowIndex'] || '0');
             if (rowIndex >= 2) {
-              const result = await updateRecord(sheetKey, rowIndex, formData);
+              const result = await updateRecord(sheetKey, rowIndex, payload);
               if (result.success) {
                 showToast('success', '✅ Data sudah ada, diperbarui otomatis!');
                 setModalOpen(false);
@@ -986,11 +1021,24 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     const newValue = inputValue ? inputValue.trim() : '';
     if (!newValue) return;
 
+    const context = buildAsyncContext();
+    const cabangValue = context.user?.isAdmin
+      ? (context.formData[cabangField || 'Cabang'] || '').trim()
+      : (context.user?.cabang || '').trim();
+
+    if (!cabangValue) {
+      showToast('warning', 'Pilih cabang terlebih dahulu sebelum menambah Kelompok Kelas.');
+      return;
+    }
+
     try {
-      const result = await createRecord('kelompokKelas', { 'Kelompok Kelas': newValue });
+      const result = await createRecord('kelompokKelas', {
+        'Kelompok Kelas': newValue,
+        Cabang: cabangValue,
+      });
       if (result.success) {
         if (field.asyncOptions) {
-          const refreshed = await field.asyncOptions();
+          const refreshed = await field.asyncOptions(context);
           setAsyncOptionsMap((prev) => {
             const current = prev[field.key] || [];
             const merged = Array.from(new Set([...(current || []), ...(refreshed || []), newValue])).sort();

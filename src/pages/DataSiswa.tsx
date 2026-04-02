@@ -1,7 +1,14 @@
 import CrudPage from '../components/CrudPage';
-import { fetchSheetOptions } from '../services/googleSheets';
+import { fetchKelompokKelasOptionsByCabang } from '../services/googleSheets';
 
-const fetchKelompokKelasOptions = () => fetchSheetOptions('kelompokKelas');
+type AsyncContext = {
+  formData: Record<string, string>;
+  user?: { isAdmin: boolean; cabang?: string | null } | null;
+  filterState?: Record<string, string>;
+  cabangField?: string;
+};
+
+const fetchKelompokKelasOptions = (cabang?: string) => fetchKelompokKelasOptionsByCabang(cabang);
 
 const fields = [
   { key: 'Nis', label: 'NIS', required: true },
@@ -28,7 +35,11 @@ const fields = [
     key: 'Kelompok Kelas',
     label: 'Kelompok Kelas',
     type: 'multiselect-checkbox' as const,
-    asyncOptions: fetchKelompokKelasOptions,
+    asyncOptions: (context: AsyncContext) => {
+      const cabangValue = context.user?.isAdmin ? context.formData['Cabang'] : context.user?.cabang ?? undefined;
+      if (context.user?.isAdmin && !cabangValue) return Promise.resolve([]);
+      return fetchKelompokKelasOptions(cabangValue);
+    },
     canCreateOption: true,
     createOptionLabel: 'Kelompok Kelas',
     colSpan: 2,
@@ -70,7 +81,10 @@ const filters = [
     key: 'Kelompok Kelas',
     label: 'Kelompok Kelas',
     placeholder: 'Semua Kelompok',
-    asyncOptions: fetchKelompokKelasOptions,
+    asyncOptions: (context: AsyncContext) =>
+      fetchKelompokKelasOptions(
+        context.user?.isAdmin ? context.filterState?.Cabang : context.user?.cabang ?? undefined
+      ),
     mode: 'includes' as const,
     searchable: true,
   },

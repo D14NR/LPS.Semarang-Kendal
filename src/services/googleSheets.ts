@@ -1,6 +1,8 @@
 // Google Sheets API service via Google Apps Script Web App
 // OPTIMIZED VERSION - With caching, timeout, and parallel fetching
 
+import { normalizeDateForStorage } from '../utils/dateUtils';
+
 // ===================== KONFIGURASI =====================
 
 const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxJYL__OE81FMUFKbXecW3T2HFiFwM7RozLje293UQF6X6WNIqgtuJHAF3A6sCyPTNKqw/exec';
@@ -171,6 +173,19 @@ function normalizeSheetData(key: SheetKey, rows: Record<string, string>[]): Reco
   }
 
   return normalizedRows;
+}
+
+function normalizeRecordDates(record: Record<string, string>): Record<string, string> {
+  const next = { ...record };
+  Object.keys(next).forEach((key) => {
+    if (/tanggal|timestamp/i.test(key)) {
+      const value = next[key];
+      if (value) {
+        next[key] = normalizeDateForStorage(value);
+      }
+    }
+  });
+  return next;
 }
 
 function getCached(key: string): Record<string, string>[] | null {
@@ -490,10 +505,11 @@ export async function fetchAllData(key: SheetKey, forceRefresh = false): Promise
  * CREATE - Add new record (Apps Script)
  */
 export async function createRecord(key: SheetKey, data: Record<string, string>): Promise<{ success: boolean; message: string; data?: Record<string, string> }> {
-  const cleanData = { ...data };
+  let cleanData = { ...data };
   delete cleanData['_id'];
   delete cleanData['_rowIndex'];
   delete cleanData['Timestamp'];
+  cleanData = normalizeRecordDates(cleanData);
 
   if (isAppsScriptConfigured()) {
     try {
@@ -537,10 +553,11 @@ export async function createRecord(key: SheetKey, data: Record<string, string>):
  */
 export async function createBulkRecords(key: SheetKey, dataArray: Record<string, string>[]): Promise<{ success: boolean; message: string; totalAdded?: number }> {
   const cleaned = dataArray.map((item) => {
-    const cleanData = { ...item };
+    let cleanData = { ...item };
     delete cleanData['_id'];
     delete cleanData['_rowIndex'];
     delete cleanData['Timestamp'];
+    cleanData = normalizeRecordDates(cleanData);
     return cleanData;
   });
 
@@ -569,17 +586,18 @@ export async function createBulkRecords(key: SheetKey, dataArray: Record<string,
     }
   }
 
-  return { success: false, message: 'Google Apps Script belum dikonfigurasi.' };
+  return { success: false, message: 'Database belum terhubung.' };
 }
 
 /**
  * UPDATE - Update existing record
  */
 export async function updateRecord(key: SheetKey, rowIndex: number, data: Record<string, string>): Promise<{ success: boolean; message: string }> {
-  const cleanData = { ...data };
+  let cleanData = { ...data };
   delete cleanData['_id'];
   delete cleanData['_rowIndex'];
   delete cleanData['Timestamp'];
+  cleanData = normalizeRecordDates(cleanData);
 
   if (isAppsScriptConfigured()) {
     try {
@@ -602,7 +620,7 @@ export async function updateRecord(key: SheetKey, rowIndex: number, data: Record
     }
   }
 
-  return { success: false, message: 'Google Apps Script belum dikonfigurasi.' };
+  return { success: false, message: 'Database belum terhubung.' };
 }
 
 /**
@@ -629,7 +647,7 @@ export async function deleteRecord(key: SheetKey, rowIndex: number): Promise<{ s
     }
   }
 
-  return { success: false, message: 'Google Apps Script belum dikonfigurasi.' };
+  return { success: false, message: 'Database belum terhubung.' };
 }
 
 /**
@@ -719,6 +737,34 @@ export async function fetchSheetOptions(sheetKey: SheetKey, columnHeader?: strin
     return options;
   } catch (error) {
     console.error(`Error fetching options for ${sheetKey}:`, error);
+    const stale = optionsCache.get(cacheKey);
+    if (stale) return stale.data;
+    return [];
+  }
+}
+
+export async function fetchKelompokKelasOptionsByCabang(cabang?: string): Promise<string[]> {
+  const normalizedCabang = (cabang || '').trim().toLowerCase();
+  const cacheKey = `options_kelompokKelas_${normalizedCabang || 'all'}`;
+  const cached = optionsCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < OPTIONS_CACHE_TTL) {
+    return cached.data;
+  }
+
+  try {
+    const rows = await fetchAllData('kelompokKelas');
+    const unique = new Set<string>();
+    rows.forEach((row) => {
+      const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
+      if (normalizedCabang && rowCabang !== normalizedCabang) return;
+      const value = (row['Kelompok Kelas'] || row['KelompokKelas'] || '').trim();
+      if (value) unique.add(value);
+    });
+    const options = Array.from(unique).sort();
+    optionsCache.set(cacheKey, { data: options, timestamp: Date.now() });
+    return options;
+  } catch (error) {
+    console.error('Error fetching kelompok kelas options:', error);
     const stale = optionsCache.get(cacheKey);
     if (stale) return stale.data;
     return [];

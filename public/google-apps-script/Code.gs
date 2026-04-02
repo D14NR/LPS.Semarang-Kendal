@@ -32,7 +32,7 @@ var SPREADSHEET_CONFIG = {
   kelompokKelas: {
     spreadsheetId: '1qN1MJ7kVRbSnsV9-WblGikHmCTzLZOTezmuUBgrZ3-k',
     sheetName: 'Kelompok Kelas',
-    headers: ['Kelompok Kelas', 'Timestamp']
+    headers: ['Kelompok Kelas', 'Cabang', 'Timestamp']
   },
   presensi: {
     spreadsheetId: '13oDDldQdcVBg5ai3nS9oGtYuq8ijWsloNRmXK87IHnw',
@@ -50,7 +50,7 @@ var SPREADSHEET_CONFIG = {
     headers: ['Nis', 'Nama Siswa', 'Tanggal', 'Jenis Tes', 'PU', 'PPU', 'PBM', 'PK', 'LIB', 'LING', 'PM', 'Rerata', 'Total', 'Cabang', 'Timestamp']
   },
   nilaiTkaSma: {
-    spreadsheetId: '1yb_UoQKe3tgbbTmnfYUFQiNQLe9NGdWsE-fzVLGthmw',
+    spreadsheetId: '1Wbx_ZuKCOeH1Ed8yxIn-jDkwmP7ZS4p1Sn7kOhWaDVM',
     sheetName: 'Nilai TKA SMA',
     headers: ['Nis', 'Nama Siswa', 'Tanggal', 'Jenis Tes', 'MTK', 'B.INDO', 'B.ING', 'MTK TL', 'FIS', 'KIM', 'BIO', 'GEO', 'SEJ', 'SOS', 'EKO', 'PP', 'PKWU', 'IND TL', 'ING TL', 'Rerata', 'Total', 'Cabang', 'Timestamp']
   },
@@ -60,14 +60,9 @@ var SPREADSHEET_CONFIG = {
     headers: ['Nis', 'Nama Siswa', 'Tanggal', 'Jenis Tes', 'MTK', 'B.INDO', 'Rerata', 'Total', 'Cabang', 'Timestamp']
   },
   nilaiTkaSd: {
-    spreadsheetId: '1yb_UoQKe3tgbbTmnfYUFQiNQLe9NGdWsE-fzVLGthmw',
+    spreadsheetId: '1KWZfvlxVkXJGs4yCwOIIHFU92z11AMF7YWIrCMbkGjQ',
     sheetName: 'Nilai TKA SD',
     headers: ['Nis', 'Nama Siswa', 'Tanggal', 'Jenis Tes', 'MTK', 'B.INDO', 'Rerata', 'Total', 'Cabang', 'Timestamp']
-  },
-  nilaiTesStandar: {
-    spreadsheetId: '1yb_UoQKe3tgbbTmnfYUFQiNQLe9NGdWsE-fzVLGthmw',
-    sheetName: 'Nilai Tes Standar',
-    headers: ['Nis', 'Nama Siswa', 'Tanggal', 'Jenis Tes', 'MTK', 'B.INDO', 'B.ING', 'MTK TL', 'FIS', 'KIM', 'BIO', 'GEO', 'SEJ', 'SOS', 'EKO', 'PP', 'IPA', 'IPS', 'PKWU', 'IND TL', 'ING TL', 'PU', 'PPU', 'PBM', 'PK', 'LIB', 'LING', 'PM', 'Rerata', 'Total', 'Cabang', 'Timestamp']
   },
   nilaiEvaluasi: {
     spreadsheetId: '1gCIG5FDpcfKZsbkwyC3eAXOnTl_dEJB88ZyMiue5ytM',
@@ -220,7 +215,7 @@ function handleRead(sheetKey) {
     for (var j = 0; j < headers.length; j++) {
       var value = row[j];
       if (value instanceof Date) {
-        obj[headers[j]] = Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+        obj[headers[j]] = formatDateIndo(value);
       } else {
         obj[headers[j]] = value !== null && value !== undefined ? String(value) : '';
       }
@@ -261,7 +256,7 @@ function handleReadOne(sheetKey, rowIndex) {
   for (var i = 0; i < headers.length; i++) {
     var value = rowData[i];
     if (value instanceof Date) {
-      obj[headers[i]] = Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+      obj[headers[i]] = formatDateIndo(value);
     } else {
       obj[headers[i]] = value !== null && value !== undefined ? String(value) : '';
     }
@@ -288,7 +283,7 @@ function handleCreate(sheetKey, data) {
   }
   
   // Tambahkan timestamp otomatis
-  data['Timestamp'] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  data['Timestamp'] = formatDateIndo(new Date());
   
   // Ambil headers dari sheet (normalized)
   var headers = ensureHeaders(sheet, config);
@@ -301,6 +296,9 @@ function handleCreate(sheetKey, data) {
     value = value !== undefined && value !== null ? value : '';
     if (typeof value === 'string') {
       value = value.trim();
+    }
+    if (value && isDateHeader(headers[i])) {
+      value = formatDateIndo(value);
     }
     newRow.push(value);
   }
@@ -343,7 +341,7 @@ function handleUpdate(sheetKey, rowIndex, data) {
   var lastCol = headers.length;
   
   // Update timestamp
-  data['Timestamp'] = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  data['Timestamp'] = formatDateIndo(new Date());
   
   // Buat array row sesuai urutan header
   var updatedRow = [];
@@ -352,6 +350,9 @@ function handleUpdate(sheetKey, rowIndex, data) {
     value = value !== undefined && value !== null ? value : '';
     if (typeof value === 'string') {
       value = value.trim();
+    }
+    if (value && isDateHeader(headers[i])) {
+      value = formatDateIndo(value);
     }
     updatedRow.push(value);
   }
@@ -411,7 +412,7 @@ function handleBulkCreate(sheetKey, dataArray) {
   var headers = ensureHeaders(sheet, config);
   var lastCol = headers.length;
   
-  var timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  var timestamp = formatDateIndo(new Date());
   
   // Buat array rows
   var rows = [];
@@ -424,6 +425,9 @@ function handleBulkCreate(sheetKey, dataArray) {
       value = value !== undefined && value !== null ? value : '';
       if (typeof value === 'string') {
         value = value.trim();
+      }
+      if (value && isDateHeader(headers[i])) {
+        value = formatDateIndo(value);
       }
       row.push(value);
     }
@@ -485,7 +489,7 @@ function handleSearch(sheetKey, searchField, searchValue) {
       for (var j = 0; j < headers.length; j++) {
         var value = row[j];
         if (value instanceof Date) {
-          obj[headers[j]] = Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+          obj[headers[j]] = formatDateIndo(value);
         } else {
           obj[headers[j]] = value !== null && value !== undefined ? String(value) : '';
         }
@@ -520,7 +524,41 @@ function normalizeKeyDeep(value) {
     .trim();
 }
 
-function getValueByHeader(data, header) {
+var DATE_HEADER_REGEX = /tanggal|timestamp/i;
+
+function formatDateIndo(value) {
+  if (!value) return '';
+  var dateObj = null;
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    dateObj = value;
+  } else {
+    var str = String(value).trim();
+    var matchDMY = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (matchDMY) {
+      var day = parseInt(matchDMY[1], 10);
+      var month = parseInt(matchDMY[2], 10) - 1;
+      var year = parseInt(matchDMY[3], 10);
+      if (year < 100) year += 2000;
+      dateObj = new Date(year, month, day);
+    }
+    if (!dateObj) {
+      var matchYMD = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+      if (matchYMD) {
+        dateObj = new Date(parseInt(matchYMD[1], 10), parseInt(matchYMD[2], 10) - 1, parseInt(matchYMD[3], 10));
+      }
+    }
+    if (!dateObj) {
+      var parsed = new Date(str);
+      if (!isNaN(parsed.getTime())) {
+        dateObj = parsed;
+      }
+    }
+  }
+  if (!dateObj || isNaN(dateObj.getTime())) return String(value);
+  return Utilities.formatDate(dateObj, Session.getScriptTimeZone(), 'dd MMM yyyy');
+}
+
+function getValueByHeader(data, header) {   
   if (!data) return '';
   if (data[header] !== undefined && data[header] !== null) {
     return data[header];
@@ -534,6 +572,10 @@ function getValueByHeader(data, header) {
     }
   }
   return '';
+}
+
+function isDateHeader(header) {
+  return DATE_HEADER_REGEX.test(String(header || ''));
 }
 
 /**

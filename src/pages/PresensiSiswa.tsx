@@ -48,7 +48,7 @@ const statusOptions = [
   { key: 'A', label: 'Alpha', value: 'Alpha', color: 'bg-red-100 text-red-700 border-red-200' },
 ];
 
-const inputStatusOptions = statusOptions.filter((option) => option.value !== 'Alpha');
+const inputStatusOptions = statusOptions.filter((opt) => opt.value !== 'Alpha');
 
 const formatDateDisplay = (value: string): string => {
   if (!value) return '-';
@@ -288,18 +288,20 @@ export default function PresensiSiswa() {
       showToast('warning', 'Lengkapi Tanggal, Mata Pelajaran, Cabang, dan Kelompok Kelas.');
       return;
     }
-    const records = filteredSiswa.map((row) => ({
-      Nis: row['Nis'] || '',
-      Nama: row['Nama'] || '',
-      Tanggal: tanggal,
-      Kelas: kelompokKelas,
-      'Mata Pelajaran': mataPelajaran,
-      Status: statusMap[row['Nis']] || 'Alpha',
-      Cabang: effectiveCabang || row['Cabang'] || '',
-    }));
+    const records = filteredSiswa
+      .filter((row) => statusMap[row['Nis']])
+      .map((row) => ({
+        Nis: row['Nis'] || '',
+        Nama: row['Nama'] || '',
+        Tanggal: tanggal,
+        Kelas: kelompokKelas,
+        'Mata Pelajaran': mataPelajaran,
+        Status: statusMap[row['Nis']],
+        Cabang: effectiveCabang || row['Cabang'] || '',
+      }));
 
     if (records.length === 0) {
-      showToast('warning', 'Tidak ada siswa yang tersedia untuk disimpan.');
+      showToast('warning', 'Pilih status presensi minimal untuk satu siswa.');
       return;
     }
 
@@ -859,7 +861,7 @@ export default function PresensiSiswa() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-3">
                   <p className="text-sm text-gray-600">
-                    Total siswa: <strong>{filteredSiswa.length}</strong> • Dicentang: <strong>{selectedCount}</strong> • Alpha otomatis: <strong>{Math.max(0, filteredSiswa.length - selectedCount)}</strong>
+                    Total siswa: <strong>{filteredSiswa.length}</strong> • Dicentang: <strong>{selectedCount}</strong>
                   </p>
                   <div className="relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
