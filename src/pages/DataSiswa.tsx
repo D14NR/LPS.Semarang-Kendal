@@ -35,9 +35,12 @@ const fields = [
     key: 'Kelompok Kelas',
     label: 'Kelompok Kelas',
     type: 'multiselect-checkbox' as const,
-    asyncOptions: (context: AsyncContext) => {
-      const cabangValue = context.user?.isAdmin ? context.formData['Cabang'] : context.user?.cabang ?? undefined;
-      if (context.user?.isAdmin && !cabangValue) return Promise.resolve([]);
+    asyncOptions: (context?: AsyncContext) => {
+      const safeContext: AsyncContext = context || { formData: {}, user: null };
+      const cabangValue = safeContext.user?.isAdmin
+        ? safeContext.formData['Cabang']
+        : safeContext.user?.cabang ?? undefined;
+      if (safeContext.user?.isAdmin && !cabangValue) return Promise.resolve([]);
       return fetchKelompokKelasOptions(cabangValue);
     },
     canCreateOption: true,
@@ -81,10 +84,12 @@ const filters = [
     key: 'Kelompok Kelas',
     label: 'Kelompok Kelas',
     placeholder: 'Semua Kelompok',
-    asyncOptions: (context: AsyncContext) =>
-      fetchKelompokKelasOptions(
-        context.user?.isAdmin ? context.filterState?.Cabang : context.user?.cabang ?? undefined
-      ),
+    asyncOptions: (context?: AsyncContext) => {
+      const safe = context || { user: null, filterState: {} };
+      return fetchKelompokKelasOptions(
+        safe.user?.isAdmin ? safe.filterState?.Cabang : safe.user?.cabang ?? undefined
+      );
+    },
     mode: 'includes' as const,
     searchable: true,
   },
@@ -92,12 +97,13 @@ const filters = [
 
 export default function DataSiswa() {
   return (
-    <CrudPage
-      title="Data Siswa"
-      sheetKey="siswa"
-      fields={fields}
-      filters={filters}
-      autoReplaceKeys={['Nis']}
-    />
+      <CrudPage
+        title="Data Siswa"
+        sheetKey="siswa"
+        fields={fields}
+        filters={filters}
+        cabangField="Cabang"
+        autoReplaceKeys={['Nis']}
+      />
   );
 }

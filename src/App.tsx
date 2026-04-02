@@ -13,6 +13,7 @@ import NilaiTkaSd from './pages/NilaiTkaSd';
 import NilaiEvaluasi from './pages/NilaiEvaluasi';
 import PelayananJamTambahan from './pages/PelayananJamTambahan';
 import NamaPengajar from './pages/NamaPengajar';
+import KelompokKelas from './pages/KelompokKelas';
 import PrintRaporSiswa from './pages/PrintRaporSiswa';
 import LaporanWhatsapp from './pages/LaporanWhatsapp';
 import Pengaturan from './pages/Pengaturan';
@@ -41,10 +42,8 @@ function AppContent() {
           <Route path="/pengajar" element={<NamaPengajar />} />
           <Route path="/rapor" element={<PrintRaporSiswa />} />
           <Route path="/laporan-whatsapp" element={<LaporanWhatsapp />} />
-          {/* Pengaturan only accessible by admin */}
-          {user?.isAdmin && (
-            <Route path="/pengaturan" element={<Pengaturan />} />
-          )}
+          <Route path="/kelompok-kelas" element={<KelompokKelas />} />
+          {user?.isAdmin && <Route path="/pengaturan" element={<Pengaturan />} />}
           {/* Fallback - redirect non-admin from pengaturan to dashboard */}
           <Route path="/pengaturan" element={<Dashboard />} />
         </Routes>

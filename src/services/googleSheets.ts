@@ -754,12 +754,25 @@ export async function fetchKelompokKelasOptionsByCabang(cabang?: string): Promis
   try {
     const rows = await fetchAllData('kelompokKelas');
     const unique = new Set<string>();
+    let hasCabangValue = false;
+
+    const getByNormalizedKey = (row: Record<string, string>, target: string) => {
+      const targetKey = normalizeKey(target).toLowerCase();
+      const direct = row[target];
+      if (direct) return direct;
+      const found = Object.entries(row).find(([k]) => normalizeKey(k).toLowerCase() === targetKey);
+      return found ? String(found[1] || '') : '';
+    };
+
     rows.forEach((row) => {
-      const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
-      if (normalizedCabang && rowCabang !== normalizedCabang) return;
-      const value = (row['Kelompok Kelas'] || row['KelompokKelas'] || '').trim();
+      const rowCabang = (getByNormalizedKey(row, 'Cabang') || '').trim().toLowerCase();
+      if (rowCabang) hasCabangValue = true;
+      if (normalizedCabang && rowCabang && rowCabang !== normalizedCabang) return;
+      if (normalizedCabang && !rowCabang && hasCabangValue) return;
+      const value = (getByNormalizedKey(row, 'Kelompok Kelas') || '').trim();
       if (value) unique.add(value);
     });
+
     const options = Array.from(unique).sort();
     optionsCache.set(cacheKey, { data: options, timestamp: Date.now() });
     return options;

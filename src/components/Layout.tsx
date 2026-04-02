@@ -33,6 +33,7 @@ interface LayoutProps {
 const menuItems = [
   { name: 'Dashboard', path: '/', icon: 'dashboard' },
   { name: 'Data Siswa', path: '/siswa', icon: 'users' },
+  { name: 'Kelompok Kelas', path: '/kelompok-kelas', icon: 'users' },
   { name: 'Presensi Siswa', path: '/presensi', icon: 'clipboard' },
   { name: 'Perkembangan Belajar', path: '/perkembangan', icon: 'trending' },
   {
@@ -202,7 +203,8 @@ export default function Layout({ children }: LayoutProps) {
 
         {/* Navigation */}
         <nav className={`flex-1 overflow-y-auto py-4 ${sidebarCollapsed ? 'px-2' : 'px-3'} space-y-1`}>
-          {menuItems.map((item) => (
+          {menuItems.map((item) => {
+            return (
             <div key={item.name}>
               {item.children ? (
                 <>
@@ -263,7 +265,8 @@ export default function Layout({ children }: LayoutProps) {
                 </Link>
               )}
             </div>
-          ))}
+          );
+          })}
         </nav>
 
         {/* Settings Link & Logout */}

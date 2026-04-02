@@ -490,8 +490,13 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     if (!user || user.isAdmin) return data;
     if (sheetKey === 'pengajar') return data;
 
+    const hasCabangValue = data.some((row) => (findValueByKey(row, cabangField) || '').trim());
+    if (!hasCabangValue) {
+      return data;
+    }
+
     return data.filter((row) => {
-      const rowCabang = (row[cabangField] || '').trim().toLowerCase();
+      const rowCabang = (findValueByKey(row, cabangField) || '').trim().toLowerCase();
       const userCabang = (user.cabang || '').trim().toLowerCase();
       return rowCabang === userCabang;
     });
@@ -1014,14 +1019,18 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     handleAutoFillOnMatch(formData);
   }, [formData, modalOpen, editingRecord, handleAutoFillOnMatch]);
 
-  const handleAddOption = async (field: FieldConfig, newValueParam?: string) => {
+  const handleAddOption = async (
+    field: FieldConfig,
+    newValueParam?: string,
+    overrideContext?: Partial<AsyncOptionsContext>
+  ) => {
     if (!field.canCreateOption) return;
     if (!field.asyncOptions && (!field.options || field.options.length === 0)) return;
     const inputValue = newValueParam ?? window.prompt(`Tambah ${field.createOptionLabel || field.label} baru:`) ?? '';
     const newValue = inputValue ? inputValue.trim() : '';
     if (!newValue) return;
 
-    const context = buildAsyncContext();
+    const context = buildAsyncContext(overrideContext) || { formData: {}, user: null, filterState: {}, cabangField };
     const cabangValue = context.user?.isAdmin
       ? (context.formData[cabangField || 'Cabang'] || '').trim()
       : (context.user?.cabang || '').trim();
@@ -1050,6 +1059,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
             [field.key]: Array.from(new Set([...(prev[field.key] || []), newValue])).sort(),
           }));
         }
+        await loadAsyncOptions();
         showToast('success', `Kelompok Kelas "${newValue}" berhasil ditambahkan.`);
         return;
       }
@@ -1364,7 +1374,11 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
                         placeholder={`Pilih ${field.label}...`}
                         allowCreate={field.canCreateOption && apiConfigured}
                         createLabel={field.createOptionLabel || field.label}
-                        onCreateOption={field.canCreateOption && apiConfigured ? (val) => handleAddOption(field, val) : undefined}
+                        onCreateOption={
+                          field.canCreateOption && apiConfigured
+                            ? (val) => handleAddOption(field, val)
+                            : undefined
+                        }
                       />
                     </div>
                   ) : field.type === 'select' ? (
