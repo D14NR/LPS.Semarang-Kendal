@@ -207,22 +207,8 @@ export default function PresensiSiswa() {
     setStatusMap(nextStatus);
   }, [tanggal, mataPelajaran, kelompokKelas, effectiveCabang, presensiData]);
 
-  const hasMatchingStudents = useMemo(() => {
-    if (!kelompokKelas) return false;
-    return siswaData.some((row) => {
-      const kelasValue = (row['Kelompok Kelas'] || '').split(',').map((s) => s.trim());
-      const matchesKelas = kelasValue.includes(kelompokKelas);
-      if (!matchesKelas) return false;
-      if (effectiveCabang) {
-        return (row['Cabang'] || '').trim().toLowerCase() === effectiveCabang.toLowerCase();
-      }
-      return true;
-    });
-  }, [siswaData, kelompokKelas, effectiveCabang]);
-
-  const filteredSiswa = useMemo(() => {
+  const kelompokSiswa = useMemo(() => {
     if (!kelompokKelas) return [];
-    const keyword = searchTerm.trim().toLowerCase();
     return siswaData.filter((row) => {
       const kelasValue = (row['Kelompok Kelas'] || '').split(',').map((s) => s.trim());
       const matchesKelas = kelasValue.includes(kelompokKelas);
@@ -231,12 +217,21 @@ export default function PresensiSiswa() {
         const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
         if (rowCabang !== effectiveCabang.toLowerCase()) return false;
       }
-      if (!keyword) return true;
+      return true;
+    });
+  }, [siswaData, kelompokKelas, effectiveCabang]);
+
+  const hasMatchingStudents = kelompokSiswa.length > 0;
+
+  const filteredSiswa = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+    if (!keyword) return kelompokSiswa;
+    return kelompokSiswa.filter((row) => {
       const nis = (row['Nis'] || '').toLowerCase();
       const nama = (row['Nama'] || '').toLowerCase();
       return nis.includes(keyword) || nama.includes(keyword);
     });
-  }, [siswaData, kelompokKelas, effectiveCabang, searchTerm]);
+  }, [kelompokSiswa, searchTerm]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredSiswa.length / perPage)), [filteredSiswa.length, perPage]);
   const paginatedSiswa = useMemo(
@@ -245,9 +240,9 @@ export default function PresensiSiswa() {
   );
 
     const selectedCount = useMemo(
-      () => filteredSiswa.filter((row) => statusMap[row['Nis']]).length,
-      [filteredSiswa, statusMap]
-    );
+    () => kelompokSiswa.filter((row) => statusMap[row['Nis']]).length,
+    [kelompokSiswa, statusMap]
+  );
 
   const toggleStatus = (nis: string, status: string) => {
     setStatusMap((prev) => {
@@ -289,7 +284,7 @@ export default function PresensiSiswa() {
       showToast('warning', 'Lengkapi Tanggal, Mata Pelajaran, Cabang, dan Kelompok Kelas.');
       return;
     }
-    const records = filteredSiswa
+    const records = kelompokSiswa
       .filter((row) => statusMap[row['Nis']])
       .map((row) => ({
         Nis: row['Nis'] || '',
