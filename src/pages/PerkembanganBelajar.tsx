@@ -96,6 +96,7 @@ export default function PerkembanganBelajar() {
   const [perkembanganData, setPerkembanganData] = useState<Record<string, string>[]>([]);
   const [pengajarData, setPengajarData] = useState<Record<string, string>[]>([]);
   const [presensiData, setPresensiData] = useState<Record<string, string>[]>([]);
+  const [kelompokData, setKelompokData] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -134,16 +135,18 @@ export default function PerkembanganBelajar() {
     if (forceRefresh) setRefreshing(true);
     setLoading(true);
     try {
-      const [siswa, perkembangan, pengajar, presensi] = await Promise.all([
+      const [siswa, perkembangan, pengajar, presensi, kelompok] = await Promise.all([
         fetchAllData('siswa', forceRefresh),
         fetchAllData('perkembangan', forceRefresh),
         fetchAllData('pengajar', forceRefresh),
         fetchAllData('presensi', forceRefresh),
+        fetchAllData('kelompokKelas', forceRefresh),
       ]);
       setSiswaData(siswa);
       setPerkembanganData(perkembangan);
       setPengajarData(pengajar);
       setPresensiData(presensi);
+      setKelompokData(kelompok);
     } catch {
       showToast('error', 'Gagal memuat data');
     }
@@ -188,17 +191,14 @@ export default function PerkembanganBelajar() {
 
   const kelompokOptions = useMemo(() => {
     const unique = new Set<string>();
-    siswaData.forEach((row) => {
-      const rowCabang = (row['Cabang'] || '').trim();
-      if (effectiveCabang && rowCabang.toLowerCase() !== effectiveCabang.toLowerCase()) return;
-      const kelasValue = (row['Kelompok Kelas'] || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      kelasValue.forEach((item) => unique.add(item));
+    kelompokData.forEach((row) => {
+      const rowCabang = (row['Cabang'] || row['CABANG'] || '').trim();
+      if (effectiveCabang && rowCabang && rowCabang.toLowerCase() !== effectiveCabang.toLowerCase()) return;
+      const kelas = (row['Kelompok Kelas'] || row['Kelompok  Kelas'] || row['Kelompok'] || '').trim();
+      if (kelas) unique.add(kelas);
     });
     return Array.from(unique).sort();
-  }, [siswaData, effectiveCabang]);
+  }, [kelompokData, effectiveCabang]);
 
   const canShowTable = Boolean(
     tanggal &&

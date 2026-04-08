@@ -80,6 +80,7 @@ export default function PresensiSiswa() {
   const [siswaData, setSiswaData] = useState<Record<string, string>[]>([]);
   const [presensiData, setPresensiData] = useState<Record<string, string>[]>([]);
   const [pengajarData, setPengajarData] = useState<Record<string, string>[]>([]);
+  const [kelompokData, setKelompokData] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -118,14 +119,16 @@ export default function PresensiSiswa() {
     if (forceRefresh) setRefreshing(true);
     setLoading(true);
     try {
-      const [siswa, presensi, pengajar] = await Promise.all([
+      const [siswa, presensi, pengajar, kelompok] = await Promise.all([
         fetchAllData('siswa', forceRefresh),
         fetchAllData('presensi', forceRefresh),
         fetchAllData('pengajar', forceRefresh),
+        fetchAllData('kelompokKelas', forceRefresh),
       ]);
       setSiswaData(siswa);
       setPresensiData(presensi);
       setPengajarData(pengajar);
+      setKelompokData(kelompok);
     } catch {
       showToast('error', 'Gagal memuat data');
     }
@@ -170,14 +173,14 @@ export default function PresensiSiswa() {
 
   const kelompokOptions = useMemo(() => {
     const unique = new Set<string>();
-    siswaData.forEach((row) => {
-      const rowCabang = (row['Cabang'] || '').trim();
-      if (effectiveCabang && rowCabang.toLowerCase() !== effectiveCabang.toLowerCase()) return;
-      const kelompok = (row['Kelompok Kelas'] || '').trim();
+    kelompokData.forEach((row) => {
+      const rowCabang = (row['Cabang'] || row['CABANG'] || '').trim();
+      if (effectiveCabang && rowCabang && rowCabang.toLowerCase() !== effectiveCabang.toLowerCase()) return;
+      const kelompok = (row['Kelompok Kelas'] || row['Kelompok  Kelas'] || row['Kelompok'] || '').trim();
       if (kelompok) unique.add(kelompok);
     });
     return Array.from(unique).sort();
-  }, [siswaData, effectiveCabang]);
+  }, [kelompokData, effectiveCabang]);
 
   const canShowTable = Boolean(tanggal && mataPelajaran && jenjangStudi && (user?.isAdmin ? effectiveCabang : true));
 
