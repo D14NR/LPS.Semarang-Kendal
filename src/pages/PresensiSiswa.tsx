@@ -88,6 +88,7 @@ export default function PresensiSiswa() {
   const [inputOpen, setInputOpen] = useState(false);
   const [tanggal, setTanggal] = useState('');
   const [mataPelajaran, setMataPelajaran] = useState('');
+  const [jenjangStudi, setJenjangStudi] = useState('');
   const [kelompokKelas, setKelompokKelas] = useState('');
   const [selectedCabang, setSelectedCabang] = useState('');
   const [statusMap, setStatusMap] = useState<Record<string, string>>({});
@@ -156,28 +157,36 @@ export default function PresensiSiswa() {
 
   const effectiveCabang = user?.isAdmin ? selectedCabang : user?.cabang || '';
 
+  const jenjangOptions = useMemo(() => {
+    const unique = new Set<string>();
+    siswaData.forEach((row) => {
+      const rowCabang = (row['Cabang'] || '').trim();
+      if (effectiveCabang && rowCabang.toLowerCase() !== effectiveCabang.toLowerCase()) return;
+      const jenjang = (row['Jenjang Studi'] || '').trim();
+      if (jenjang) unique.add(jenjang);
+    });
+    return Array.from(unique).sort();
+  }, [siswaData, effectiveCabang]);
+
   const kelompokOptions = useMemo(() => {
     const unique = new Set<string>();
     siswaData.forEach((row) => {
       const rowCabang = (row['Cabang'] || '').trim();
       if (effectiveCabang && rowCabang.toLowerCase() !== effectiveCabang.toLowerCase()) return;
-      const kelasValue = (row['Kelompok Kelas'] || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      kelasValue.forEach((item) => unique.add(item));
+      const kelompok = (row['Kelompok Kelas'] || '').trim();
+      if (kelompok) unique.add(kelompok);
     });
     return Array.from(unique).sort();
   }, [siswaData, effectiveCabang]);
 
-  const canShowTable = Boolean(tanggal && mataPelajaran && kelompokKelas && (user?.isAdmin ? effectiveCabang : true));
+  const canShowTable = Boolean(tanggal && mataPelajaran && jenjangStudi && (user?.isAdmin ? effectiveCabang : true));
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [kelompokKelas, searchTerm, effectiveCabang]);
+  }, [jenjangStudi, searchTerm, effectiveCabang]);
 
   useEffect(() => {
-    if (!tanggal || !mataPelajaran || !kelompokKelas) {
+    if (!tanggal || !mataPelajaran || !jenjangStudi || !kelompokKelas) {
       setStatusMap({});
       return;
     }
@@ -205,21 +214,20 @@ export default function PresensiSiswa() {
     });
 
     setStatusMap(nextStatus);
-  }, [tanggal, mataPelajaran, kelompokKelas, effectiveCabang, presensiData]);
+  }, [tanggal, mataPelajaran, jenjangStudi, kelompokKelas, effectiveCabang, presensiData]);
 
   const kelompokSiswa = useMemo(() => {
-    if (!kelompokKelas) return [];
+    if (!jenjangStudi) return [];
     return siswaData.filter((row) => {
-      const kelasValue = (row['Kelompok Kelas'] || '').split(',').map((s) => s.trim());
-      const matchesKelas = kelasValue.includes(kelompokKelas);
-      if (!matchesKelas) return false;
+      const rowJenjang = (row['Jenjang Studi'] || '').trim();
+      if (!rowJenjang || rowJenjang.toLowerCase() !== jenjangStudi.toLowerCase()) return false;
       if (effectiveCabang) {
         const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
         if (rowCabang !== effectiveCabang.toLowerCase()) return false;
       }
       return true;
     });
-  }, [siswaData, kelompokKelas, effectiveCabang]);
+  }, [siswaData, jenjangStudi, effectiveCabang]);
 
   const hasMatchingStudents = kelompokSiswa.length > 0;
 
@@ -259,6 +267,7 @@ export default function PresensiSiswa() {
   const resetInputModal = () => {
     setTanggal('');
     setMataPelajaran('');
+    setJenjangStudi('');
     setKelompokKelas('');
     setSelectedCabang('');
     setStatusMap({});
@@ -281,7 +290,11 @@ export default function PresensiSiswa() {
       return;
     }
     if (!canShowTable) {
-      showToast('warning', 'Lengkapi Tanggal, Mata Pelajaran, Cabang, dan Kelompok Kelas.');
+      showToast('warning', 'Lengkapi Tanggal, Mata Pelajaran, Cabang, dan Jenjang Studi.');
+      return;
+    }
+    if (!kelompokKelas) {
+      showToast('warning', 'Pilih Kelompok Kelas sebelum menyimpan presensi.');
       return;
     }
     const records = kelompokSiswa
@@ -777,8 +790,8 @@ export default function PresensiSiswa() {
         size="xl"
         contentClassName="overflow-y-auto"
       >
-        <div className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 min-h-[120px]">
+          <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 min-h-[120px]">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <CalendarDays size={16} className="text-gray-400" /> Tanggal
@@ -809,46 +822,63 @@ export default function PresensiSiswa() {
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   <MapPin size={16} className="text-gray-400" /> Cabang
                 </label>
-                <SearchableSelect
-                  value={selectedCabang}
-                  onChange={(val) => {
-                    setSelectedCabang(val);
-                    setKelompokKelas('');
-                    setStatusMap({});
-                  }}
-                  options={cabangOptions}
-                  placeholder="Pilih Cabang"
-                />
+                  <SearchableSelect
+                    value={selectedCabang}
+                    onChange={(val) => {
+                      setSelectedCabang(val);
+                      setJenjangStudi('');
+                      setKelompokKelas('');
+                      setStatusMap({});
+                    }}
+                    options={cabangOptions}
+                    placeholder="Pilih Cabang"
+                  />
               </div>
             )}
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <ClipboardCheck size={16} className="text-gray-400" /> Kelompok Kelas
+                <ClipboardCheck size={16} className="text-gray-400" /> Jenjang Studi
               </label>
-              <SearchableSelect
-                value={kelompokKelas}
+                <SearchableSelect
+                  value={jenjangStudi}
                 onChange={(val) => {
-                  setKelompokKelas(val);
+                  setJenjangStudi(val);
+                  setKelompokKelas('');
                   setStatusMap({});
                 }}
-                options={kelompokOptions}
-                placeholder="Pilih Kelompok Kelas"
-                disabled={user?.isAdmin ? !selectedCabang : false}
-              />
+                  options={jenjangOptions}
+                  placeholder="Pilih Jenjang Studi"
+                  disabled={user?.isAdmin ? !selectedCabang : false}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <ClipboardCheck size={16} className="text-gray-400" /> Kelompok Kelas
+                </label>
+                <SearchableSelect
+                  value={kelompokKelas}
+                  onChange={(val) => {
+                    setKelompokKelas(val);
+                    setStatusMap({});
+                  }}
+                  options={kelompokOptions}
+                  placeholder="Pilih Kelompok Kelas"
+                  disabled={user?.isAdmin ? !selectedCabang : false}
+                />
+              </div>
             </div>
-          </div>
 
           {!canShowTable && (
             <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
               <AlertCircle size={16} />
-              Lengkapi Tanggal, Mata Pelajaran, Cabang, dan Kelompok Kelas untuk menampilkan daftar siswa.
+              Lengkapi Tanggal, Mata Pelajaran, Cabang, dan Jenjang Studi untuk menampilkan daftar siswa. Pilih Kelompok Kelas sebelum menyimpan.
             </div>
           )}
 
           {canShowTable && !hasMatchingStudents && (
             <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
               <AlertCircle size={16} />
-              Tidak ada siswa yang terdaftar pada kelompok kelas ini di cabang tersebut.
+              Tidak ada siswa yang terdaftar pada jenjang studi ini di cabang tersebut.
             </div>
           )}
 

@@ -105,6 +105,7 @@ export default function PerkembanganBelajar() {
   const [tanggal, setTanggal] = useState('');
   const [mataPelajaran, setMataPelajaran] = useState('');
   const [materi, setMateri] = useState('');
+  const [jenjangStudi, setJenjangStudi] = useState('');
   const [kelompokKelas, setKelompokKelas] = useState('');
   const [selectedCabang, setSelectedCabang] = useState('');
   const [rowInputs, setRowInputs] = useState<Record<string, { Penguasaan: string; Penjelasan: string; Kondisi: string; Catatan: string }>>({});
@@ -174,6 +175,17 @@ export default function PerkembanganBelajar() {
 
   const effectiveCabang = user?.isAdmin ? selectedCabang : user?.cabang || '';
 
+  const jenjangOptions = useMemo(() => {
+    const unique = new Set<string>();
+    siswaData.forEach((row) => {
+      const rowCabang = (row['Cabang'] || '').trim();
+      if (effectiveCabang && rowCabang.toLowerCase() !== effectiveCabang.toLowerCase()) return;
+      const jenjang = (row['Jenjang Studi'] || '').trim();
+      if (jenjang) unique.add(jenjang);
+    });
+    return Array.from(unique).sort();
+  }, [siswaData, effectiveCabang]);
+
   const kelompokOptions = useMemo(() => {
     const unique = new Set<string>();
     siswaData.forEach((row) => {
@@ -188,14 +200,20 @@ export default function PerkembanganBelajar() {
     return Array.from(unique).sort();
   }, [siswaData, effectiveCabang]);
 
-  const canShowTable = Boolean(tanggal && mataPelajaran && kelompokKelas && (user?.isAdmin ? effectiveCabang : true));
+  const canShowTable = Boolean(
+    tanggal &&
+      mataPelajaran &&
+      jenjangStudi &&
+      kelompokKelas &&
+      (user?.isAdmin ? effectiveCabang : true)
+  );
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [kelompokKelas, searchTerm, effectiveCabang]);
+  }, [jenjangStudi, kelompokKelas, searchTerm, effectiveCabang]);
 
   useEffect(() => {
-    if (!tanggal || !mataPelajaran || !kelompokKelas) {
+    if (!tanggal || !mataPelajaran || !jenjangStudi || !kelompokKelas) {
       setRowInputs({});
       return;
     }
@@ -206,8 +224,8 @@ export default function PerkembanganBelajar() {
 
     const allowedNis = new Set<string>();
     siswaData.forEach((row) => {
-      const kelasValue = (row['Kelompok Kelas'] || '').split(',').map((s) => s.trim());
-      if (!kelasValue.includes(kelompokKelas)) return;
+      const rowJenjang = (row['Jenjang Studi'] || '').trim().toLowerCase();
+      if (!jenjangStudi || rowJenjang !== jenjangStudi.trim().toLowerCase()) return;
       if (normalizedCabang) {
         const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
         if (rowCabang !== normalizedCabang) return;
@@ -248,15 +266,14 @@ export default function PerkembanganBelajar() {
     if (!materi && existingMateri) {
       setMateri(existingMateri);
     }
-  }, [tanggal, mataPelajaran, kelompokKelas, effectiveCabang, perkembanganData, materi, siswaData]);
+  }, [tanggal, mataPelajaran, jenjangStudi, kelompokKelas, effectiveCabang, perkembanganData, materi, siswaData]);
 
   const filteredSiswa = useMemo(() => {
-    if (!kelompokKelas) return [];
+    if (!jenjangStudi) return [];
     const keyword = searchTerm.trim().toLowerCase();
     return siswaData.filter((row) => {
-      const kelasValue = (row['Kelompok Kelas'] || '').split(',').map((s) => s.trim());
-      const matchesKelas = kelasValue.includes(kelompokKelas);
-      if (!matchesKelas) return false;
+      const rowJenjang = (row['Jenjang Studi'] || '').trim().toLowerCase();
+      if (rowJenjang !== jenjangStudi.trim().toLowerCase()) return false;
       if (effectiveCabang) {
         const rowCabang = (row['Cabang'] || '').trim().toLowerCase();
         if (rowCabang !== effectiveCabang.toLowerCase()) return false;
@@ -266,7 +283,7 @@ export default function PerkembanganBelajar() {
       const nama = (row['Nama'] || '').toLowerCase();
       return nis.includes(keyword) || nama.includes(keyword);
     });
-  }, [siswaData, kelompokKelas, effectiveCabang, searchTerm]);
+  }, [siswaData, jenjangStudi, effectiveCabang, searchTerm]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredSiswa.length / perPage)), [filteredSiswa.length, perPage]);
   const paginatedSiswa = useMemo(
@@ -284,6 +301,7 @@ export default function PerkembanganBelajar() {
     setTanggal('');
     setMataPelajaran('');
     setMateri('');
+    setJenjangStudi('');
     setKelompokKelas('');
     setSelectedCabang('');
     setRowInputs({});
@@ -319,7 +337,7 @@ export default function PerkembanganBelajar() {
       return;
     }
     if (!canShowTable) {
-      showToast('warning', 'Lengkapi Tanggal, Mata Pelajaran, Cabang, dan Kelompok Kelas.');
+      showToast('warning', 'Lengkapi Tanggal, Mata Pelajaran, Jenjang Studi, Cabang, dan Kelompok Kelas.');
       return;
     }
 
@@ -920,6 +938,22 @@ export default function PerkembanganBelajar() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <ClipboardCheck size={16} className="text-gray-400" /> Jenjang Studi
+              </label>
+              <SearchableSelect
+                value={jenjangStudi}
+                onChange={(val) => {
+                  setJenjangStudi(val);
+                  setRowInputs({});
+                  setSearchTerm('');
+                }}
+                options={jenjangOptions}
+                placeholder="Pilih Jenjang Studi"
+                disabled={user?.isAdmin ? !selectedCabang : false}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <TrendingUp size={16} className="text-gray-400" /> Materi (Opsional)
               </label>
               <input
@@ -939,8 +973,10 @@ export default function PerkembanganBelajar() {
                   value={selectedCabang}
                   onChange={(val) => {
                     setSelectedCabang(val);
+                    setJenjangStudi('');
                     setKelompokKelas('');
                     setRowInputs({});
+                    setSearchTerm('');
                   }}
                   options={cabangOptions}
                   placeholder="Pilih Cabang"
@@ -967,7 +1003,7 @@ export default function PerkembanganBelajar() {
           {!canShowTable && (
             <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
               <AlertCircle size={16} />
-              Lengkapi Tanggal, Mata Pelajaran, Cabang, dan Kelompok Kelas untuk menampilkan daftar siswa.
+              Lengkapi Tanggal, Mata Pelajaran, Jenjang Studi, Cabang, dan Kelompok Kelas untuk menampilkan daftar siswa.
             </div>
           )}
 
@@ -1015,7 +1051,7 @@ export default function PerkembanganBelajar() {
                     {paginatedSiswa.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-6 text-center text-gray-400">
-                          {searchTerm ? 'Tidak ada siswa sesuai pencarian.' : 'Tidak ada siswa pada kelompok ini.'}
+                          {searchTerm ? 'Tidak ada siswa sesuai pencarian.' : 'Tidak ada siswa pada jenjang ini.'}
                         </td>
                       </tr>
                     ) : (
