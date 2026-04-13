@@ -14,7 +14,7 @@ const normalizeHeader = (value: string) =>
     .replace(/[^a-z0-9]/gi, '')
     .trim();
 
-import { formatDateIndo } from './dateUtils';
+import { formatDateIndo, parseIndoDateString } from './dateUtils';
 
 const excelSerialToDateString = (serial: number): string => {
   const utcDays = Math.floor(serial - 25569);
@@ -107,16 +107,16 @@ export async function parseSpreadsheetFile(file: File, fields: ImportField[]): P
               value = formatDateIndo(rawValue);
             } else if (typeof rawValue === 'number') {
               value = excelSerialToDateString(rawValue);
-            } else {
-              const rawString = String(rawValue).trim();
-              if (/^\d+(\.\d+)?$/.test(rawString)) {
-                const numericValue = Number(rawString);
-                value = Number.isNaN(numericValue) ? rawString : excelSerialToDateString(numericValue);
               } else {
-                const parsed = new Date(rawString);
-                value = Number.isNaN(parsed.getTime()) ? rawString : formatDateIndo(parsed);
+                const rawString = String(rawValue).trim();
+                if (/^\d+(\.\d+)?$/.test(rawString)) {
+                  const numericValue = Number(rawString);
+                  value = Number.isNaN(numericValue) ? rawString : excelSerialToDateString(numericValue);
+                } else {
+                  const parsed = parseIndoDateString(rawString);
+                  value = parsed ? formatDateIndo(parsed) : rawString;
+                }
               }
-            }
           } else if (typeof rawValue === 'number') {
             value = String(rawValue).replace('.', ',');
           } else {

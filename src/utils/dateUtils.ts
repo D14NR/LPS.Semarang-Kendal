@@ -51,8 +51,14 @@ export const parseIndoDateString = (value: string): Date | null => {
     }
   }
 
-  const direct = new Date(trimmed);
-  if (!Number.isNaN(direct.getTime())) return direct;
+  const numericMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (numericMatch) {
+    const day = parseInt(numericMatch[1], 10);
+    const month = parseInt(numericMatch[2], 10) - 1;
+    const year = parseInt(numericMatch[3], 10) < 100 ? 2000 + parseInt(numericMatch[3], 10) : parseInt(numericMatch[3], 10);
+    const date = new Date(year, month, day);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
 
   const monthMatch = trimmed
     .toLowerCase()
@@ -69,14 +75,8 @@ export const parseIndoDateString = (value: string): Date | null => {
     }
   }
 
-  const numericMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-  if (numericMatch) {
-    const day = parseInt(numericMatch[1], 10);
-    const month = parseInt(numericMatch[2], 10) - 1;
-    const year = parseInt(numericMatch[3], 10) < 100 ? 2000 + parseInt(numericMatch[3], 10) : parseInt(numericMatch[3], 10);
-    const date = new Date(year, month, day);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
+  const direct = new Date(trimmed);
+  if (!Number.isNaN(direct.getTime())) return direct;
 
   return null;
 };

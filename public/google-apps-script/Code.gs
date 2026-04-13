@@ -563,7 +563,11 @@ function formatDateIndo(value) {
     }
   }
   if (!dateObj || isNaN(dateObj.getTime())) return String(value);
-  return Utilities.formatDate(dateObj, Session.getScriptTimeZone(), 'dd MMM yyyy');
+  var months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  var dayStr = ('0' + dateObj.getDate()).slice(-2);
+  var monthStr = months[dateObj.getMonth()] || '';
+  var yearStr = dateObj.getFullYear();
+  return dayStr + ' ' + monthStr + ' ' + yearStr;
 }
 
 function getValueByHeader(data, header) {   
