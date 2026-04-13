@@ -36,6 +36,21 @@ export const parseIndoDateString = (value: string): Date | null => {
   if (!value) return null;
   const trimmed = value.trim();
 
+  const numericOnly = trimmed.replace(/\s+/g, '');
+  if (/^\d+(\.\d+)?$/.test(numericOnly)) {
+    const numericValue = Number(numericOnly);
+    if (!Number.isNaN(numericValue)) {
+      if (numericValue > 20000) {
+        const date = new Date((numericValue - 25569) * 86400 * 1000);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+      if (numericValue >= 1000 && numericValue <= 9999) {
+        const date = new Date(numericValue, 0, 1);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+    }
+  }
+
   const direct = new Date(trimmed);
   if (!Number.isNaN(direct.getTime())) return direct;
 

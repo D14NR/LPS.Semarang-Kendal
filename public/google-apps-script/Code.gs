@@ -533,13 +533,21 @@ function formatDateIndo(value) {
     dateObj = value;
   } else {
     var str = String(value).trim();
-    var matchDMY = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-    if (matchDMY) {
-      var day = parseInt(matchDMY[1], 10);
-      var month = parseInt(matchDMY[2], 10) - 1;
-      var year = parseInt(matchDMY[3], 10);
-      if (year < 100) year += 2000;
-      dateObj = new Date(year, month, day);
+    if (/^\d+(\.\d+)?$/.test(str)) {
+      var numericValue = parseFloat(str);
+      if (!isNaN(numericValue) && numericValue > 20000) {
+        dateObj = new Date((numericValue - 25569) * 86400 * 1000);
+      }
+    }
+    if (!dateObj) {
+      var matchDMY = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+      if (matchDMY) {
+        var day = parseInt(matchDMY[1], 10);
+        var month = parseInt(matchDMY[2], 10) - 1;
+        var year = parseInt(matchDMY[3], 10);
+        if (year < 100) year += 2000;
+        dateObj = new Date(year, month, day);
+      }
     }
     if (!dateObj) {
       var matchYMD = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);

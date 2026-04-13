@@ -48,7 +48,7 @@ export async function parseSpreadsheetFile(file: File, fields: ImportField[]): P
     }
 
     const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' }) as string[][];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' }) as unknown[][];
 
     if (!rows.length) {
       return { records: [], preview: [], headers: [], error: 'File kosong.' };
@@ -103,12 +103,19 @@ export async function parseSpreadsheetFile(file: File, fields: ImportField[]): P
         let value = '';
         if (rawValue !== undefined && rawValue !== null) {
           if (fieldType === 'date') {
-            if (typeof rawValue === 'number') {
+            if (rawValue instanceof Date) {
+              value = formatDateIndo(rawValue);
+            } else if (typeof rawValue === 'number') {
               value = excelSerialToDateString(rawValue);
             } else {
               const rawString = String(rawValue).trim();
-              const parsed = new Date(rawString);
-              value = Number.isNaN(parsed.getTime()) ? rawString : formatDateIndo(parsed);
+              if (/^\d+(\.\d+)?$/.test(rawString)) {
+                const numericValue = Number(rawString);
+                value = Number.isNaN(numericValue) ? rawString : excelSerialToDateString(numericValue);
+              } else {
+                const parsed = new Date(rawString);
+                value = Number.isNaN(parsed.getTime()) ? rawString : formatDateIndo(parsed);
+              }
             }
           } else if (typeof rawValue === 'number') {
             value = String(rawValue).replace('.', ',');
