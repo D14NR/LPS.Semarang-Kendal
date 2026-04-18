@@ -14,7 +14,7 @@ import {
   type SheetKey,
 } from '../services/googleSheets';
 import { parseSpreadsheetFile, generateTemplateWorkbook, exportRecordsWorkbook } from '../utils/importUtils';
-import { normalizeDateForStorage } from '../utils/dateUtils';
+import { normalizeDateForStorage, parseIndoDateString, formatDateIndo } from '../utils/dateUtils';
 import { useAuth } from '../contexts/AuthContext';
 
 interface AsyncOptionsContext {
@@ -88,51 +88,19 @@ const findValueByKey = (row: Record<string, string>, key: string): string => {
 
 const parseDateValue = (value: string): Date | null => {
   if (!value) return null;
-
-  // Numeric serial date (Google Sheets)
-  if (/^\d+(\.\d+)?$/.test(value)) {
-    const serial = parseFloat(value);
-    if (!Number.isNaN(serial) && serial > 20000) {
-      const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
-      return Number.isNaN(date.getTime()) ? null : date;
-    }
-  }
-
-  // ISO or standard parse
-  const direct = new Date(value);
-  if (!Number.isNaN(direct.getTime())) return direct;
-
-  // Try replacing space with T for datetime
-  const alt = new Date(value.replace(' ', 'T'));
-  if (!Number.isNaN(alt.getTime())) return alt;
-
-  // dd/MM/yyyy or dd-MM-yyyy
-  const match = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-  if (match) {
-    const day = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10) - 1;
-    const year = parseInt(match[3], 10) < 100 ? 2000 + parseInt(match[3], 10) : parseInt(match[3], 10);
-    const date = new Date(year, month, day);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  return null;
+  return parseIndoDateString(value);
 };
 
 const formatDateDisplay = (value: string, withTime = false): string => {
   const date = parseDateValue(value);
   if (!date) return '';
-  const options: Intl.DateTimeFormatOptions = withTime
-    ? { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }
-    : { day: '2-digit', month: 'short', year: 'numeric' };
-  return new Intl.DateTimeFormat('id-ID', options).format(date);
+  return formatDateIndo(date, withTime);
 };
 
 const formatDateValue = (row: Record<string, string>, key: string, rawValue?: string): string => {
   const value = rawValue || findValueByKey(row, key);
   if (!value) return '';
-  const withTime = /timestamp/i.test(key) || value.includes(':');
-  return formatDateDisplay(value, withTime) || value;
+  return formatDateDisplay(value, false) || value;
 };
 
 const getRowDateSortValue = (row: Record<string, string>, dateKeys: string[]): number => {

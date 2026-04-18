@@ -17,6 +17,7 @@ import {
   type SheetKey,
 } from '../services/googleSheets';
 import { useAuth } from '../contexts/AuthContext';
+import { formatDateIndo, parseIndoDateString } from '../utils/dateUtils';
 
 interface SheetBundle {
   siswa: Record<string, string>[];
@@ -44,30 +45,13 @@ const sheetKeys: SheetKey[] = [
 
 const parseDateValue = (value: string): Date | null => {
   if (!value) return null;
-  if (/^\d+(\.\d+)?$/.test(value)) {
-    const serial = parseFloat(value);
-    if (!Number.isNaN(serial) && serial > 20000) {
-      const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
-      return Number.isNaN(date.getTime()) ? null : date;
-    }
-  }
-  const direct = new Date(value);
-  if (!Number.isNaN(direct.getTime())) return direct;
-  const match = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-  if (match) {
-    const day = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10) - 1;
-    const year = parseInt(match[3], 10) < 100 ? 2000 + parseInt(match[3], 10) : parseInt(match[3], 10);
-    const date = new Date(year, month, day);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-  return null;
+  return parseIndoDateString(value);
 };
 
 const formatDate = (value: string) => {
   const parsed = parseDateValue(value);
   if (!parsed) return value || '-';
-  return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(parsed);
+  return formatDateIndo(parsed);
 };
 
 const withinRange = (value: string, start?: Date | null, end?: Date | null) => {
@@ -219,8 +203,8 @@ export default function PrintRaporSiswa() {
   }, [bundle, selectedStudent]);
 
   const dateRange = useMemo(() => {
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
+    const start = startDate ? parseIndoDateString(startDate) : null;
+    const end = endDate ? parseIndoDateString(endDate) : null;
     if (end) end.setHours(23, 59, 59, 999);
     return { start, end };
   }, [startDate, endDate]);

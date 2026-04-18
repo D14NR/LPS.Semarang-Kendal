@@ -29,6 +29,7 @@ import {
 } from '../services/googleSheets';
 import { parseSpreadsheetFile, generateTemplateWorkbook, exportRecordsWorkbook } from '../utils/importUtils';
 import { useAuth } from '../contexts/AuthContext';
+import { parseIndoDateString, formatDateIndo } from '../utils/dateUtils';
 
 const importFields = [
   { key: 'Nis', label: 'NIS' },
@@ -46,26 +47,13 @@ const getTemplateFields = (isAdmin: boolean) =>
 
 const formatDateDisplay = (value: string): string => {
   if (!value) return '-';
-  const parsed = new Date(value);
-  if (!Number.isNaN(parsed.getTime())) {
-    return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(parsed);
-  }
-  return value;
+  const parsed = parseIndoDateString(value);
+  return parsed ? formatDateIndo(parsed) : value;
 };
 
 const parseDateValue = (value: string): Date | null => {
   if (!value) return null;
-  const direct = new Date(value);
-  if (!Number.isNaN(direct.getTime())) return direct;
-  const match = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-  if (match) {
-    const day = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10) - 1;
-    const year = parseInt(match[3], 10) < 100 ? 2000 + parseInt(match[3], 10) : parseInt(match[3], 10);
-    const date = new Date(year, month, day);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-  return null;
+  return parseIndoDateString(value);
 };
 
 export default function PelayananJamTambahan() {

@@ -556,6 +556,49 @@ function formatDateIndo(value) {
       }
     }
     if (!dateObj) {
+      var monthMatch = str.toLowerCase().replace(/\s+/g, ' ').match(/(\d{1,2})\s*([a-zA-Z]+)\s*(\d{4})/);
+      if (monthMatch) {
+        var dayText = parseInt(monthMatch[1], 10);
+        var monthText = monthMatch[2];
+        var yearText = parseInt(monthMatch[3], 10);
+        var monthMap = {
+          jan: 0,
+          januari: 0,
+          feb: 1,
+          februari: 1,
+          mar: 2,
+          maret: 2,
+          apr: 3,
+          april: 3,
+          mei: 4,
+          jun: 5,
+          juni: 5,
+          jul: 6,
+          juli: 6,
+          agu: 7,
+          agustus: 7,
+          sep: 8,
+          september: 8,
+          okt: 9,
+          oktober: 9,
+          nov: 10,
+          november: 10,
+          des: 11,
+          desember: 11,
+          may: 4,
+          jun: 5,
+          jul: 6,
+          aug: 7,
+          oct: 9,
+          dec: 11
+        };
+        var monthIndex = monthMap[monthText] !== undefined ? monthMap[monthText] : monthMap[monthText.slice(0, 3)];
+        if (monthIndex !== undefined) {
+          dateObj = new Date(yearText, monthIndex, dayText);
+        }
+      }
+    }
+    if (!dateObj) {
       var parsed = new Date(str);
       if (!isNaN(parsed.getTime())) {
         dateObj = parsed;

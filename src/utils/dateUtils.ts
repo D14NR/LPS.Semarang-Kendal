@@ -24,12 +24,18 @@ export const INDONESIAN_MONTHS: Record<string, number> = {
   desember: 11,
 };
 
+const INDONESIAN_MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
 export const formatDateIndo = (date: Date, withTime = false): string => {
   if (Number.isNaN(date.getTime())) return '';
-  const options: Intl.DateTimeFormatOptions = withTime
-    ? { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }
-    : { day: '2-digit', month: 'short', year: 'numeric' };
-  return new Intl.DateTimeFormat('id-ID', options).format(date);
+  const day = String(date.getDate()).padStart(2, '0');
+  const monthLabel = INDONESIAN_MONTH_LABELS[date.getMonth()] || '';
+  const year = date.getFullYear();
+  const base = `${day} ${monthLabel} ${year}`.trim();
+  if (!withTime) return base;
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${base} ${hours}:${minutes}`.trim();
 };
 
 export const parseIndoDateString = (value: string): Date | null => {
