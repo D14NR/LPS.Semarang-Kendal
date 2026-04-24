@@ -49,6 +49,7 @@ const getTemplateFields = (isAdmin: boolean) =>
 const penguasaanOptions = [
   'Sangat Menguasai Materi',
   'Cukup Menguasai Materi',
+  'Menguasai Materi',
   'Kurang Menguasai Materi',
   'Sangat Kurang Menguasai Materi',
 ];
