@@ -676,6 +676,22 @@ export default function PrintRaporSiswa() {
   }, [loadData]);
 
   useEffect(() => {
+    const handler = (ev: any) => {
+      try {
+        const changedKey = ev?.detail?.key;
+        if (!changedKey) return;
+        if (sheetKeys.includes(changedKey as any) || ['kelompokKelas', 'sekolah'].includes(changedKey)) {
+          loadData(true);
+        }
+      } catch {}
+    };
+    if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('supabase:recordsChanged', handler as EventListener);
+    return () => {
+      if (typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('supabase:recordsChanged', handler as EventListener);
+    };
+  }, [loadData]);
+
+  useEffect(() => {
     const beforePrint = () => setIsPrinting(true);
     const afterPrint = () => setIsPrinting(false);
     window.addEventListener('beforeprint', beforePrint);

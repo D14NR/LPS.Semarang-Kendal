@@ -11,6 +11,7 @@ interface SearchableSelectProps {
   loading?: boolean;
   className?: string;
   size?: 'sm' | 'md';
+  onOpen?: () => void;
 }
 
 export default function SearchableSelect({
@@ -78,7 +79,14 @@ export default function SearchableSelect({
         ref={buttonRef}
         type="button"
         disabled={disabled || loading}
-        onClick={() => !disabled && !loading && setOpen((prev) => !prev)}
+        onClick={() => {
+          if (disabled || loading) return;
+          // notify parent before opening so it can refresh options
+          if (!open && typeof onOpen === 'function') {
+            try { onOpen(); } catch {}
+          }
+          setOpen((prev) => !prev);
+        }}
         className={`w-full ${basePadding} border rounded-xl ${textSize} text-left flex items-center gap-2 transition-all relative ${
           disabled || loading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white hover:border-gray-300'
         } ${open ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-200'}`}

@@ -14,6 +14,20 @@ export default function NamaPengajar() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    const handler = (ev: any) => {
+      try {
+        const changedKey = ev?.detail?.key;
+        if (!changedKey) return;
+        if (changedKey === 'pengajar') loadData();
+      } catch {}
+    };
+    if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('supabase:recordsChanged', handler as EventListener);
+    return () => {
+      if (typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('supabase:recordsChanged', handler as EventListener);
+    };
+  }, []);
+
   const loadData = async () => {
     setLoading(true);
     try {

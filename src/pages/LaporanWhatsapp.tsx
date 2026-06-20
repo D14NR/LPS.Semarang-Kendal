@@ -185,6 +185,22 @@ export default function LaporanWhatsapp() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    const handler = (ev: any) => {
+      try {
+        const changedKey = ev?.detail?.key;
+        if (!changedKey) return;
+        if (['siswa', 'presensi', 'perkembangan', 'nilaiUtbk', 'nilaiTesStandar', 'nilaiEvaluasi', 'pelayanan', 'kelompokKelas', 'sekolah'].includes(changedKey)) {
+          loadData(true);
+        }
+      } catch {}
+    };
+    if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('supabase:recordsChanged', handler as EventListener);
+    return () => {
+      if (typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('supabase:recordsChanged', handler as EventListener);
+    };
+  }, [loadData]);
+
   const cabangOptions = useMemo(() => {
     const unique = new Set<string>();
     siswaData.forEach((row) => {

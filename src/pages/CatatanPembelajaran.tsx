@@ -225,6 +225,23 @@ export default function CatatanPembelajaran() {
   }, []);
 
   useEffect(() => {
+    const handler = (ev: any) => {
+      try {
+        const changedKey = ev?.detail?.key;
+        if (!changedKey) return;
+        // If any related table changed, refresh page data
+        if (['siswa', 'pengajar', 'catatan_pembelajaran', 'kelompokKelas', 'sekolah'].includes(changedKey)) {
+          loadData(true);
+        }
+      } catch {}
+    };
+    if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('supabase:recordsChanged', handler as EventListener);
+    return () => {
+      if (typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('supabase:recordsChanged', handler as EventListener);
+    };
+  }, [loadData]);
+
+  useEffect(() => {
     loadData();
   }, [loadData]);
 
@@ -465,6 +482,7 @@ export default function CatatanPembelajaran() {
             <select
               value={selectedCabang}
               onChange={(e) => setSelectedCabang(e.target.value)}
+              onFocus={() => loadData(true)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Semua Cabang</option>
@@ -585,6 +603,7 @@ export default function CatatanPembelajaran() {
               placeholder="Pilih siswa..."
               onChange={handleSiswaSelect}
               value={nisValue && namaValue ? `${nisValue} - ${namaValue}` : ''}
+              onOpen={() => loadData(true)}
             />
           </div>
 
@@ -593,6 +612,7 @@ export default function CatatanPembelajaran() {
             <select
               value={mataPelajaran}
               onChange={(e) => setMataPelajaran(e.target.value)}
+              onFocus={() => loadData(true)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Pilih Mata Pelajaran</option>
@@ -620,6 +640,7 @@ export default function CatatanPembelajaran() {
               <select
                 value={pengajar}
                 onChange={(e) => setPengajar(e.target.value)}
+                onFocus={() => loadData(true)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Pilih Pengajar</option>

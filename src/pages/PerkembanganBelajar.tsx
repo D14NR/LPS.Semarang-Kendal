@@ -234,6 +234,22 @@ export default function PerkembanganBelajar() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    const handler = (ev: any) => {
+      try {
+        const changedKey = ev?.detail?.key;
+        if (!changedKey) return;
+        if (['siswa', 'kelompokKelas', 'pengajar', 'sekolah'].includes(changedKey)) {
+          loadData(true);
+        }
+      } catch {}
+    };
+    if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('supabase:recordsChanged', handler as EventListener);
+    return () => {
+      if (typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('supabase:recordsChanged', handler as EventListener);
+    };
+  }, [loadData]);
+
   const getStudentCabang = (row: Record<string, string>) =>
     ((row['Cabang'] || row['cabang'] || row['CABANG'] || '') as string).trim();
 
@@ -1223,6 +1239,7 @@ export default function PerkembanganBelajar() {
                               <select
                                 value={input.Kehadiran}
                                 onChange={(e) => handleRowChange(nis, 'Kehadiran', e.target.value)}
+                                onFocus={() => loadData(true)}
                                 className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
                               >
                                 <option value="">Pilih</option>
@@ -1238,6 +1255,7 @@ export default function PerkembanganBelajar() {
                                   <select
                                     value={percentToSelection(input['Prosen Penguasaan'], penguasaanToPercent) || input['Prosen Penguasaan'] || ''}
                                     onChange={(e) => handleRowChange(nis, 'Prosen Penguasaan', e.target.value)}
+                                    onFocus={() => loadData(true)}
                                     className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
                                   >
                                     <option value="">Pilih</option>
@@ -1250,6 +1268,7 @@ export default function PerkembanganBelajar() {
                                   <select
                                     value={percentToSelection(input['Prosen Penjelasan'], penjelasanToPercent) || input['Prosen Penjelasan'] || ''}
                                     onChange={(e) => handleRowChange(nis, 'Prosen Penjelasan', e.target.value)}
+                                    onFocus={() => loadData(true)}
                                     className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
                                   >
                                     <option value="">Pilih</option>
@@ -1262,6 +1281,7 @@ export default function PerkembanganBelajar() {
                                   <select
                                     value={percentToSelection(input['Prosen Kondisi'], kondisiToPercent) || input['Prosen Kondisi'] || ''}
                                     onChange={(e) => handleRowChange(nis, 'Prosen Kondisi', e.target.value)}
+                                    onFocus={() => loadData(true)}
                                     className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
                                   >
                                     <option value="">Pilih</option>
@@ -1390,6 +1410,7 @@ export default function PerkembanganBelajar() {
               <select
                 value={formData['Kehadiran'] || ''}
                 onChange={(e) => setFormData((prev) => ({ ...prev, Kehadiran: e.target.value }))}
+                onFocus={() => loadData(true)}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
               >
                 <option value="">Pilih</option>
@@ -1405,6 +1426,7 @@ export default function PerkembanganBelajar() {
               <select
                 value={percentToSelection(formData['Prosen Penguasaan'], penguasaanToPercent) || ''}
                 onChange={(e) => setFormData((prev) => ({ ...prev, 'Prosen Penguasaan': String(mapSelectionToPercent(e.target.value, penguasaanToPercent) ?? '') }))}
+                onFocus={() => loadData(true)}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
               >
                 <option value="">Pilih</option>
@@ -1419,6 +1441,7 @@ export default function PerkembanganBelajar() {
               <select
                 value={percentToSelection(formData['Prosen Penjelasan'], penjelasanToPercent) || ''}
                 onChange={(e) => setFormData((prev) => ({ ...prev, 'Prosen Penjelasan': String(mapSelectionToPercent(e.target.value, penjelasanToPercent) ?? '') }))}
+                onFocus={() => loadData(true)}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
               >
                 <option value="">Pilih</option>
@@ -1433,6 +1456,7 @@ export default function PerkembanganBelajar() {
               <select
                 value={percentToSelection(formData['Prosen Kondisi'], kondisiToPercent) || ''}
                 onChange={(e) => setFormData((prev) => ({ ...prev, 'Prosen Kondisi': String(mapSelectionToPercent(e.target.value, kondisiToPercent) ?? '') }))}
+                onFocus={() => loadData(true)}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
               >
                 <option value="">Pilih</option>

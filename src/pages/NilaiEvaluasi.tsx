@@ -73,8 +73,6 @@ export default function NilaiEvaluasi() {
       });
       setStudentsMap(map);
     };
-    loadStudents();
-    // load pengajar to derive Mata Pelajaran options
     const loadPengajar = async () => {
       const pengajar = await fetchPengajarFromKmb();
       const map = new Map<string, string>();
@@ -86,7 +84,28 @@ export default function NilaiEvaluasi() {
       });
       setMataPelajaranOptions(Array.from(map.values()).sort((a, b) => a.localeCompare(b)));
     };
-    loadPengajar();
+
+    const loadOptions = async () => {
+      await Promise.all([loadStudents(), loadPengajar()]);
+    };
+
+    loadOptions();
+  }, []);
+
+  useEffect(() => {
+    const handler = (ev: any) => {
+      try {
+        const changedKey = ev?.detail?.key;
+        if (!changedKey) return;
+        if (['siswa', 'pengajar', 'kelompokKelas', 'sekolah'].includes(changedKey)) {
+          loadOptions();
+        }
+      } catch {}
+    };
+    if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('supabase:recordsChanged', handler as EventListener);
+    return () => {
+      if (typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('supabase:recordsChanged', handler as EventListener);
+    };
   }, []);
 
   const resolvedFields = fields.map((field) => {
@@ -146,7 +165,7 @@ export default function NilaiEvaluasi() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Mata Pelajaran</label>
-              <select value={mataPelajaran} onChange={(e) => setMataPelajaran(e.target.value)} className="w-full px-3 py-2 border rounded-lg">
+              <select value={mataPelajaran} onChange={(e) => setMataPelajaran(e.target.value)} onFocus={() => loadOptions()} className="w-full px-3 py-2 border rounded-lg">
                 <option value="">Pilih Mata Pelajaran</option>
                 {mataPelajaranOptions.map((m) => (
                   <option key={m} value={m}>{m}</option>
@@ -184,7 +203,7 @@ export default function NilaiEvaluasi() {
                           <input readOnly value={r.Nis} className="w-full px-2 py-1 border rounded bg-gray-50" />
                         </td>
                         <td className="px-3 py-2">
-                          <SearchableSelect
+                            <SearchableSelect
                             value={r.Nis && r.Nama ? `${r.Nis} - ${r.Nama}` : r.Nama}
                             onChange={(val) => {
                               const parts = String(val || '').split(' - ');
@@ -193,8 +212,10 @@ export default function NilaiEvaluasi() {
                               setRows((prev) => prev.map((row, i) => (i === idx ? { ...row, Nis: nis, Nama: nama } : row)));
                             }}
                             options={studentOptions}
+                            onOpen={() => loadOptions()}
                             placeholder="Pilih Nama"
                           />
+                            
                         </td>
                         <td className="px-3 py-2">
                           <input type="number" step="0.01" value={r.Nilai} onChange={(e) => setRows((prev) => prev.map((row, i) => i === idx ? { ...row, Nilai: e.target.value } : row))} className="w-full px-2 py-1 border rounded" />

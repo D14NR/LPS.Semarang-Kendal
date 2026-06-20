@@ -336,6 +336,15 @@ export async function createRecord(key: SheetKey, data: Record<string, string>):
     const inserted = r.data && r.data[0] ? r.data[0] : null;
     // Even if the client didn't return the inserted row representation, consider the insert successful
     invalidateCache(table);
+    // Notify the app in the browser that records for this key changed so other components can refresh
+    try {
+      if (typeof window !== 'undefined' && window?.dispatchEvent) {
+        console.debug('supabase.createRecord: dispatching recordsChanged', { key, table });
+        window.dispatchEvent(new CustomEvent('supabase:recordsChanged', { detail: { key } }));
+      }
+    } catch (err) {
+      console.error('supabase.createRecord: dispatch error', err);
+    }
     if (!inserted) {
       return { success: true, message: 'Inserted' };
     }
@@ -360,6 +369,14 @@ export async function createBulkRecords(key: SheetKey, dataArray: Record<string,
     const r = await safeInsert(table, payload);
     if (r.error) throw r.error;
     invalidateCache(table);
+    try {
+      if (typeof window !== 'undefined' && window?.dispatchEvent) {
+        console.debug('supabase.createBulkRecords: dispatching recordsChanged', { key, table });
+        window.dispatchEvent(new CustomEvent('supabase:recordsChanged', { detail: { key } }));
+      }
+    } catch (err) {
+      console.error('supabase.createBulkRecords: dispatch error', err);
+    }
     return { success: true, message: 'Bulk insert queued', totalAdded: payload.length };
   } catch (err: any) {
     return { success: false, message: String(err.message || err) };
@@ -397,6 +414,14 @@ export async function updateRecord(key: SheetKey, rowIdentifier: string | number
         }
     }
     invalidateCache(table);
+    try {
+      if (typeof window !== 'undefined' && window?.dispatchEvent) {
+        console.debug('supabase.updateRecord: dispatching recordsChanged', { key, table });
+        window.dispatchEvent(new CustomEvent('supabase:recordsChanged', { detail: { key } }));
+      }
+    } catch (err) {
+      console.error('supabase.updateRecord: dispatch error', err);
+    }
     return { success: true, message: 'Updated' };
   } catch (err: any) {
     return { success: false, message: String(err.message || err) };
@@ -426,6 +451,14 @@ export async function deleteRecord(key: SheetKey, rowIdentifier: string | number
       }
     }
     invalidateCache(table);
+    try {
+      if (typeof window !== 'undefined' && window?.dispatchEvent) {
+        console.debug('supabase.deleteRecord: dispatching recordsChanged', { key, table });
+        window.dispatchEvent(new CustomEvent('supabase:recordsChanged', { detail: { key } }));
+      }
+    } catch (err) {
+      console.error('supabase.deleteRecord: dispatch error', err);
+    }
     return { success: true, message: 'Deleted' };
   } catch (err: any) {
     return { success: false, message: String(err.message || err) };

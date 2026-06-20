@@ -145,6 +145,7 @@ interface MultiSelectCheckboxProps {
   allowCreate?: boolean;
   createLabel?: string;
   onCreateOption?: (value: string) => Promise<void> | void;
+  onOpen?: () => void;
 }
 
 function MultiSelectCheckbox({
@@ -156,6 +157,7 @@ function MultiSelectCheckbox({
   allowCreate,
   createLabel,
   onCreateOption,
+  onOpen,
 }: MultiSelectCheckboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -246,7 +248,13 @@ function MultiSelectCheckbox({
     <div ref={containerRef} className="relative">
       {/* Trigger Button */}
       <div
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          const willOpen = !isOpen;
+          setIsOpen(willOpen);
+          if (willOpen && typeof onOpen === 'function') {
+            try { onOpen(); } catch {}
+          }
+        }}
         className={`w-full min-h-[44px] px-3 py-2 border rounded-xl text-sm cursor-pointer transition-all flex items-center gap-2 flex-wrap ${
           isOpen
             ? 'border-blue-500 ring-2 ring-blue-500/20'
@@ -778,6 +786,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
 
   // Load async options when modal opens
   const loadAsyncOptions = useCallback(async () => {
+    console.debug('[CrudPage] loadAsyncOptions start', { modalOpen, editingRecord });
     const asyncFields = fields.filter((f) => f.asyncOptions && (f.type === 'multiselect-checkbox' || f.type === 'select'));
     if (asyncFields.length === 0) return;
 
@@ -791,7 +800,9 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     await Promise.all(
       asyncFields.map(async (field) => {
         try {
+          console.debug(`[CrudPage] loading async options for`, { field: field.key, context });
           const options = await field.asyncOptions!(context);
+          console.debug(`[CrudPage] loaded options for`, { field: field.key, count: Array.isArray(options) ? options.length : 0 });
           setAsyncOptionsMap((prev) => ({ ...prev, [field.key]: options }));
         } catch (err) {
           console.error(`Failed to load options for ${field.key}:`, err);
@@ -821,7 +832,10 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     });
     setFormData(initial);
     setModalOpen(true);
-    loadAsyncOptions();
+    // Ensure formData state is applied before loading async options
+    setTimeout(() => {
+      loadAsyncOptions();
+    }, 0);
   };
 
   const handleAutoFillOnMatch = useCallback((nextFormData: Record<string, string>) => {
@@ -870,7 +884,11 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     });
     setFormData(initial);
     setModalOpen(true);
-    loadAsyncOptions();
+    // Ensure formData state is applied before loading async options
+    // (when editing, setState is async so loading immediately can see stale formData)
+    setTimeout(() => {
+      loadAsyncOptions();
+    }, 0);
   };
 
   const openViewModal = (row: Record<string, string>) => {
@@ -1012,6 +1030,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
   const isFiltered = user && !user.isAdmin && sheetKey !== 'pengajar';
   const jenjangStudiValue = String(formData['Jenjang Studi'] || '').trim();
   const cabangValue = String(formData['Cabang'] || '').trim();
+  const asalSekolahValue = String(formData['Asal Sekolah'] || '').trim();
 
   useEffect(() => {
     if (!modalOpen || editingRecord) return;
@@ -1021,7 +1040,31 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
   useEffect(() => {
     if (!modalOpen || editingRecord) return;
     loadAsyncOptions();
-  }, [modalOpen, editingRecord, jenjangStudiValue, cabangValue, loadAsyncOptions]);
+  }, [modalOpen, editingRecord, jenjangStudiValue, cabangValue, asalSekolahValue, loadAsyncOptions]);
+
+  // Listen for background record changes and refresh async options (e.g., when Kelompok Kelas added elsewhere)
+  useEffect(() => {
+    const handler = (ev: any) => {
+      try {
+        const changedKey = ev?.detail?.key;
+        if (!changedKey) return;
+        // If kelompokKelas changed, refresh async options so dropdowns update without reload
+        if (changedKey === 'kelompokKelas') {
+          loadAsyncOptions();
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('supabase:recordsChanged', handler as EventListener);
+    }
+    return () => {
+      if (typeof window !== 'undefined' && window.removeEventListener) {
+        window.removeEventListener('supabase:recordsChanged', handler as EventListener);
+      }
+    };
+  }, [loadAsyncOptions]);
 
   const handleAddOption = async (
     field: FieldConfig,
@@ -1390,6 +1433,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
                             ? (val) => handleAddOption(field, val)
                             : undefined
                         }
+                        onOpen={() => setTimeout(() => loadAsyncOptions(), 0)}
                       />
                     </div>
                   ) : field.type === 'select' ? (
@@ -1400,8 +1444,16 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
                           const nextForm = { ...formData, [field.key]: val };
                           setFormData((prev) => ({ ...prev, [field.key]: val }));
                           field.onValueChange?.(val, nextForm, setFormData);
+                          // If Cabang or Jenjang Studi changed, refresh async options after state applies
+                          const keyLower = String(field.key || '').toLowerCase();
+                          if (keyLower.includes('cabang') || keyLower.includes('jenjang') || keyLower.includes('asal')) {
+                            setTimeout(() => {
+                              loadAsyncOptions();
+                            }, 0);
+                          }
                         }}
                         options={asyncOptionsMap[field.key] || field.options || []}
+                        onOpen={() => setTimeout(() => loadAsyncOptions(), 0)}
                         placeholder={`Pilih ${field.label}`}
                         loading={asyncOptionsLoading[field.key] || false}
                         disabled={!!isCabangFieldForNonAdmin || field.readOnly}

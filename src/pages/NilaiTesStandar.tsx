@@ -58,7 +58,7 @@ export default function NilaiTesStandar() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const loadStudents = async () => {
+    const loadOptions = async () => {
       const siswa = (await fetchAllData('siswa')) as StudentRow[];
       const options = siswa
         .map(studentOption)
@@ -72,20 +72,31 @@ export default function NilaiTesStandar() {
         if (nis) map[String(nis).trim()] = String(nama).trim();
       });
       setStudentsMap(map);
-    };
-    loadStudents();
-    const loadPengajar = async () => {
+
       const pengajar = await fetchPengajarFromKmb();
-      const map = new Map<string, string>();
+      const map2 = new Map<string, string>();
       pengajar.forEach((row) => {
         const raw = (row['bidang_studi'] || row['mata_pelajaran'] || row['Mata Pelajaran'] || row['bidang'] || row['bidang studi'] || '').trim();
         if (!raw) return;
         const parts = raw.split(/[;,|\\/]+/).map((p) => p.trim()).filter(Boolean);
-        parts.forEach((p) => map.set(p.toLowerCase(), p));
+        parts.forEach((p) => map2.set(p.toLowerCase(), p));
       });
-      setMataPelajaranOptions(Array.from(map.values()).sort((a, b) => a.localeCompare(b)));
+      setMataPelajaranOptions(Array.from(map2.values()).sort((a, b) => a.localeCompare(b)));
     };
-    loadPengajar();
+    loadOptions();
+    const handler = (ev: any) => {
+      try {
+        const changedKey = ev?.detail?.key;
+        if (!changedKey) return;
+        if (changedKey === 'siswa' || changedKey === 'pengajar' || changedKey === 'sekolah' || changedKey === 'kelompokKelas') {
+          loadOptions();
+        }
+      } catch {}
+    };
+    if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('supabase:recordsChanged', handler as EventListener);
+    return () => {
+      if (typeof window !== 'undefined' && window.removeEventListener) window.removeEventListener('supabase:recordsChanged', handler as EventListener);
+    };
   }, []);
 
   const resolvedFields = fields.map((field) => {
