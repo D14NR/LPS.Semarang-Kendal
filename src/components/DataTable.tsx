@@ -46,8 +46,8 @@ export default function DataTable({ columns, data, onEdit, onDelete, onView, loa
     let result = data;
     if (search) {
       const s = search.toLowerCase();
-      result = result.filter(row =>
-        columns.some(col => findValueByKey(row, col.key).toLowerCase().includes(s))
+      result = result.filter((row) =>
+        columns.some((col) => findValueByKey(row, col.key).toLowerCase().includes(s))
       );
     }
     if (sortField) {
@@ -187,51 +187,62 @@ export default function DataTable({ columns, data, onEdit, onDelete, onView, loa
                 </td>
               </tr>
             ) : (
-              paginated.map((row, idx) => (
-                <tr key={row['_id'] || idx} className="hover:bg-blue-50/50 transition-colors">
-                  <td className="px-4 py-3 text-gray-500">
-                    {(currentPage - 1) * perPage + idx + 1}
-                  </td>
-                  {columns.map(col => (
-                    <td key={col.key} className="px-4 py-3 text-gray-700 whitespace-nowrap max-w-[200px] truncate">
-                      {col.render ? col.render(findValueByKey(row, col.key), row) : (findValueByKey(row, col.key) || '-')}
+              paginated.map((row, idx) => {
+                const clickable = Boolean(onEdit || onView);
+                return (
+                  <tr
+                    key={row['_id'] || idx}
+                    className={"hover:bg-blue-50/50 transition-colors" + (clickable ? ' cursor-pointer' : '')}
+                    onClick={() => {
+                      if (onEdit) return onEdit(row);
+                      if (onView) return onView(row);
+                      return undefined;
+                    }}
+                  >
+                    <td className="px-4 py-3 text-gray-500">
+                      {(currentPage - 1) * perPage + idx + 1}
                     </td>
-                  ))}
-                  {(onEdit || onDelete || onView) && (
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-1">
-                        {onView && (
-                          <button
-                            onClick={() => onView(row)}
-                            className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Lihat"
-                          >
-                            <Eye size={16} />
-                          </button>
-                        )}
-                        {onEdit && (
-                          <button
-                            onClick={() => onEdit(row)}
-                            className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                        )}
-                        {onDelete && (
-                          <button
-                            onClick={() => onDelete(row)}
-                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Hapus"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))
+                    {columns.map((col, colIdx) => (
+                      <td key={col.key} className="px-4 py-3 text-gray-700 whitespace-nowrap max-w-[200px] truncate">
+                        {col.render ? col.render(findValueByKey(row, col.key), row) : (findValueByKey(row, col.key) || '-')}
+                      </td>
+                    ))}
+                    {(onEdit || onDelete || onView) && (
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1">
+                          {onView && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onView(row); }}
+                              className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Lihat"
+                            >
+                              <Eye size={16} />
+                            </button>
+                          )}
+                          {onEdit && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onEdit(row); }}
+                              className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                          )}
+                          {onDelete && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onDelete(row); }}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Hapus"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

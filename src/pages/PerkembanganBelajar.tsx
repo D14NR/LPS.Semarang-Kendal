@@ -324,8 +324,15 @@ export default function PerkembanganBelajar() {
       if (effectiveCabang && rowCabang && rowCabang.toLowerCase() !== effectiveCabang.toLowerCase()) return;
       const jenjang = getStudentJenjang(row);
       if (jenjangStudi && jenjang && jenjang.toLowerCase() !== jenjangStudi.toLowerCase()) return;
-      const kelompok = getStudentKelompok(row);
-      if (kelompok) unique.add(kelompok);
+      const kelompokRaw = getStudentKelompok(row);
+      if (kelompokRaw) {
+        // split comma/semicolon-separated kelompok values
+        kelompokRaw
+          .split(/\s*[,;]\s*/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .forEach((k) => unique.add(k));
+      }
     });
     return Array.from(unique).sort();
   }, [siswaData, kelompokData, effectiveCabang, jenjangStudi]);
@@ -359,6 +366,14 @@ export default function PerkembanganBelajar() {
       if (normalizedCabang) {
         const rowCabang = getStudentCabang(row).toLowerCase();
         if (rowCabang !== normalizedCabang) return;
+      }
+      // Only include students who belong to the selected kelompokKelas (supports multiple kelompok stored
+      // as comma-separated values in the student's row)
+      const kelompokRaw = getStudentKelompok(row);
+      const kelompokParts = kelompokRaw ? kelompokRaw.split(/\s*[,;]\s*/).map((s) => s.trim()).filter(Boolean) : [];
+      if (kelompokKelas && kelompokKelas.trim()) {
+        const matched = kelompokParts.some((p) => p.toLowerCase() === kelompokKelas.trim().toLowerCase());
+        if (!matched) return;
       }
       const nis = (row['Nis'] || row['nis'] || '').trim();
       if (nis) allowedNis.add(nis);

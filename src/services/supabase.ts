@@ -492,7 +492,11 @@ export async function fetchKelompokKelasOptionsByCabang(cabang?: string, jenjang
       const rowCabang = String(r.cabang || '').trim().toLowerCase();
       if (normalizedCabang && rowCabang && rowCabang !== normalizedCabang) return;
       if (normalizedCabang && !rowCabang) return;
-      if (r.kelompok_kelas) set.add(String(r.kelompok_kelas).trim());
+      if (r.kelompok_kelas) {
+        const raw = String(r.kelompok_kelas || '');
+        // split comma-separated values and add individually
+        raw.split(',').map((s) => s.trim()).filter(Boolean).forEach((item) => set.add(item));
+      }
     });
     return Array.from(set).sort() as string[];
   } catch (err) {
@@ -542,7 +546,21 @@ export const JENJANG_STUDI_OPTIONS = [
 ];
 
 export async function fetchJenjangSekolahOptions(): Promise<string[]> {
-  return JENJANG_STUDI_OPTIONS;
+  try {
+    const { data, error } = await supabase.from('sekolah').select('jenjang_studi');
+    if (error) throw error;
+    const set = new Set<string>();
+    (data || []).forEach((r: any) => {
+      const raw = String(r.jenjang_studi || '').trim();
+      if (!raw) return;
+      raw.split(',').map((s) => s.trim()).filter(Boolean).forEach((p) => set.add(p));
+    });
+    if (set.size === 0) return JENJANG_STUDI_OPTIONS;
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'id'));
+  } catch (err) {
+    console.error('fetchJenjangSekolahOptions error, falling back to constants', err);
+    return JENJANG_STUDI_OPTIONS;
+  }
 }
 
 export async function fetchJenjangsForSchool(namaSekolah?: string): Promise<string[]> {
@@ -552,8 +570,8 @@ export async function fetchJenjangsForSchool(namaSekolah?: string): Promise<stri
     // Try exact match first
     let res: any = await supabase.from('sekolah').select('jenjang_studi').eq('nama_sekolah', nameClean);
     if (!res || !res.data || res.data.length === 0) {
-      // Try case-insensitive exact
-      res = await supabase.from('sekolah').select('jenjang_studi').ilike('nama_sekolah', nameClean);
+      // Try case-insensitive partial match
+      res = await supabase.from('sekolah').select('jenjang_studi').ilike('nama_sekolah', `%${nameClean}%`);
     }
     if (!res || res.error) {
       console.error('fetchJenjangsForSchool query error', res?.error || res);

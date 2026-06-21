@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Search, X } from 'lucide-react';
+import { Check, ChevronDown, Search, X, RefreshCw } from 'lucide-react';
 
 interface SearchableSelectProps {
   value: string;
@@ -12,6 +12,7 @@ interface SearchableSelectProps {
   className?: string;
   size?: 'sm' | 'md';
   onOpen?: () => void;
+  onRefresh?: () => void;
 }
 
 export default function SearchableSelect({
@@ -23,6 +24,8 @@ export default function SearchableSelect({
   loading = false,
   className = '',
   size = 'md',
+  onOpen,
+  onRefresh,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -94,21 +97,42 @@ export default function SearchableSelect({
         <span className={selectedLabel ? 'text-gray-700' : 'text-gray-400'}>
           {loading ? 'Memuat...' : selectedLabel || placeholder}
         </span>
-        {selectedLabel && !disabled && (
-          <span
-            onClick={(event) => {
-              event.stopPropagation();
-              onChange('');
+        <div className="ml-auto flex items-center gap-2">
+          {selectedLabel && !disabled && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onChange('');
+              }}
+              className="text-gray-300 hover:text-gray-500 p-1"
+            >
+              <X size={14} />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (typeof onRefresh === 'function') {
+                try { onRefresh(); } catch {}
+                return;
+              }
+              if (typeof onOpen === 'function') {
+                try { onOpen(); } catch {}
+              }
             }}
-            className="ml-auto text-gray-300 hover:text-gray-500"
+            disabled={disabled || loading}
+            title="Refresh opsi"
+            className="text-gray-400 hover:text-gray-600 p-1 rounded"
           >
-            <X size={14} />
-          </span>
-        )}
-        <ChevronDown
-          size={16}
-          className={`ml-auto text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
-        />
+            <RefreshCw size={16} />
+          </button>
+          <ChevronDown
+            size={16}
+            className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          />
+        </div>
       </button>
 
       {open && !disabled && !loading && dropdownRect && createPortal(

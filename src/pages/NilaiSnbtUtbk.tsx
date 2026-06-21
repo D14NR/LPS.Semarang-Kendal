@@ -75,8 +75,8 @@ export default function NilaiSnbtUtbk() {
         sheetKey="nilaiSnbtUtbk"
         fields={resolvedFields}
         modalSize="lg"
-        addLabel="Tambah Nilai SNBT-UTBK"
         autoReplaceKeys={[ 'Nis', 'Tanggal', 'Jenis Tes', 'Cabang' ]}
+        showAddButton={false}
         autoFillOnMatch
       />
 

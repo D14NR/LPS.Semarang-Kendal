@@ -67,6 +67,7 @@ interface CrudPageProps {
   defaultSortKeys?: string[];
   addLabel?: string;
   readOnly?: boolean;
+  showAddButton?: boolean;
   showImport?: boolean;
   onAddClick?: () => void;
 }
@@ -400,7 +401,7 @@ function MultiSelectCheckbox({
 
 // ===================== CrudPage Component =====================
 
-export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', cabangField = 'Cabang', filters = [], autoReplaceKeys = [], autoFillOnMatch = false, defaultSortKeys = [], addLabel, readOnly = false, showImport = true, onAddClick }: CrudPageProps) {
+export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', cabangField = 'Cabang', filters = [], autoReplaceKeys = [], autoFillOnMatch = false, defaultSortKeys = [], addLabel, readOnly = false, showImport = true, onAddClick, showAddButton = true }: CrudPageProps) {
   const [data, setData] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -415,6 +416,16 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
   const [cachedInfo, setCachedInfo] = useState<string>('');
   const [asyncOptionsMap, setAsyncOptionsMap] = useState<Record<string, string[]>>({});
   const [asyncOptionsLoading, setAsyncOptionsLoading] = useState<Record<string, boolean>>({});
+  const [asyncOptionsSig, setAsyncOptionsSig] = useState<Record<string, string>>({});
+  const asyncOptionsSigRef = useRef<Record<string, string>>({});
+  const asyncOptionsMapRef = useRef<Record<string, string[]>>({});
+
+  useEffect(() => {
+    asyncOptionsSigRef.current = asyncOptionsSig;
+  }, [asyncOptionsSig]);
+  useEffect(() => {
+    asyncOptionsMapRef.current = asyncOptionsMap;
+  }, [asyncOptionsMap]);
   const [importOpen, setImportOpen] = useState(false);
   const [importPreview, setImportPreview] = useState<Record<string, string>[]>([]);
   const [importRecords, setImportRecords] = useState<Record<string, string>[]>([]);
@@ -781,11 +792,21 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
       cabangField,
       ...override,
     }),
-    [formData, user, filterState, cabangField]
+    [user, filterState, cabangField]
   );
+  // Keep a ref to formData so buildAsyncContext identity doesn't change on typing
+  const formDataRef = useRef<Record<string, string>>(formData);
+  useEffect(() => { formDataRef.current = formData; }, [formData]);
+  const buildAsyncContextRef = useCallback((override?: Partial<AsyncOptionsContext>) => ({
+    formData: formDataRef.current,
+    user,
+    filterState,
+    cabangField,
+    ...override,
+  }), [user, filterState, cabangField]);
 
   // Load async options when modal opens
-  const loadAsyncOptions = useCallback(async () => {
+  const loadAsyncOptions = useCallback(async (overrideFormData?: Record<string, string>) => {
     console.debug('[CrudPage] loadAsyncOptions start', { modalOpen, editingRecord });
     const asyncFields = fields.filter((f) => f.asyncOptions && (f.type === 'multiselect-checkbox' || f.type === 'select'));
     if (asyncFields.length === 0) return;
@@ -796,14 +817,24 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     });
     setAsyncOptionsLoading((prev) => ({ ...prev, ...loadingState }));
 
-    const context = buildAsyncContext();
+    const context = buildAsyncContextRef(overrideFormData ? { formData: overrideFormData } : undefined);
     await Promise.all(
       asyncFields.map(async (field) => {
         try {
           console.debug(`[CrudPage] loading async options for`, { field: field.key, context });
+          // compute a simple signature of the context to avoid re-fetching when nothing relevant changed
+          const sig = JSON.stringify({ formData: context.formData || {}, user: context.user || null, filterState: context.filterState || {} });
+          const existingSig = asyncOptionsSigRef.current[field.key];
+          const existingMap = asyncOptionsMapRef.current[field.key];
+          if (existingSig === sig && Array.isArray(existingMap) && (existingMap || []).length) {
+            console.debug(`[CrudPage] skipping load for`, { field: field.key, reason: 'context unchanged' });
+            setAsyncOptionsLoading((prev) => ({ ...prev, [field.key]: false }));
+            return;
+          }
           const options = await field.asyncOptions!(context);
           console.debug(`[CrudPage] loaded options for`, { field: field.key, count: Array.isArray(options) ? options.length : 0 });
           setAsyncOptionsMap((prev) => ({ ...prev, [field.key]: options }));
+          setAsyncOptionsSig((prev) => ({ ...prev, [field.key]: sig }));
         } catch (err) {
           console.error(`Failed to load options for ${field.key}:`, err);
           setAsyncOptionsMap((prev) => ({ ...prev, [field.key]: field.options || [] }));
@@ -813,6 +844,32 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
       })
     );
   }, [fields, buildAsyncContext]);
+
+  const refreshField = useCallback(
+    async (fieldKey: string, overrideFormData?: Record<string, string>, force = false) => {
+      const field = fields.find((f) => f.key === fieldKey);
+      if (!field || !field.asyncOptions) return;
+      setAsyncOptionsLoading((prev) => ({ ...prev, [fieldKey]: true }));
+        try {
+          const context = buildAsyncContextRef(overrideFormData ? { formData: overrideFormData } : undefined);
+          const sig = JSON.stringify({ formData: context.formData || {}, user: context.user || null, filterState: context.filterState || {} });
+          const existingSig = asyncOptionsSigRef.current[fieldKey];
+          const existingMap = asyncOptionsMapRef.current[fieldKey];
+          if (!force && existingSig === sig && Array.isArray(existingMap) && (existingMap || []).length) {
+            return;
+          }
+          const options = await field.asyncOptions(context);
+          setAsyncOptionsMap((prev) => ({ ...prev, [fieldKey]: options }));
+          setAsyncOptionsSig((prev) => ({ ...prev, [fieldKey]: sig }));
+      } catch (err) {
+        console.error(`Failed to refresh options for ${fieldKey}:`, err);
+        setAsyncOptionsMap((prev) => ({ ...prev, [fieldKey]: field.options || [] }));
+      } finally {
+        setAsyncOptionsLoading((prev) => ({ ...prev, [fieldKey]: false }));
+      }
+      },
+      [fields, buildAsyncContext]
+  );
 
   const openAddModal = () => {
     if (!isAppsScriptConfigured()) {
@@ -832,10 +889,6 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     });
     setFormData(initial);
     setModalOpen(true);
-    // Ensure formData state is applied before loading async options
-    setTimeout(() => {
-      loadAsyncOptions();
-    }, 0);
   };
 
   const handleAutoFillOnMatch = useCallback((nextFormData: Record<string, string>) => {
@@ -1040,7 +1093,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
   useEffect(() => {
     if (!modalOpen || editingRecord) return;
     loadAsyncOptions();
-  }, [modalOpen, editingRecord, jenjangStudiValue, cabangValue, asalSekolahValue, loadAsyncOptions]);
+  }, [modalOpen, editingRecord, loadAsyncOptions]);
 
   // Listen for background record changes and refresh async options (e.g., when Kelompok Kelas added elsewhere)
   useEffect(() => {
@@ -1077,7 +1130,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     const newValue = inputValue ? inputValue.trim() : '';
     if (!newValue) return;
 
-    const context = buildAsyncContext(overrideContext) || { formData: {}, user: null, filterState: {}, cabangField };
+    const context = buildAsyncContextRef(overrideContext) || { formData: {}, user: null, filterState: {}, cabangField };
     const cabangValue = context.user?.isAdmin
       ? (context.formData[cabangField || 'Cabang'] || '').trim()
       : (context.user?.cabang || '').trim();
@@ -1210,17 +1263,19 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
                   Import
                 </button>
               )}
-              <button
-                onClick={() => (onAddClick ? onAddClick() : openAddModal())}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-md ${
-                  apiConfigured
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200'
-                    : 'bg-gray-400 text-white cursor-not-allowed shadow-gray-200'
-                }`}
-              >
-                <Plus size={16} />
-                {addLabel || 'Tambah Data'}
-              </button>
+              {showAddButton && (
+                <button
+                  onClick={() => (onAddClick ? onAddClick() : openAddModal())}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-md ${
+                    apiConfigured
+                      ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200'
+                      : 'bg-gray-400 text-white cursor-not-allowed shadow-gray-200'
+                  }`}
+                >
+                  <Plus size={16} />
+                  {addLabel || 'Tambah Data'}
+                </button>
+              )}
             </>
           )}
         </div>
@@ -1256,6 +1311,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
                     placeholder={filter.placeholder || `Semua ${filter.label}`}
                     disabled={loadingOptions}
                     size="sm"
+                    onRefresh={() => loadFilterOptions()}
                   />
                   {loadingOptions && (
                     <p className="text-xs text-gray-400 mt-1">Memuat opsi...</p>
@@ -1420,44 +1476,74 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
                   </label>
                   {field.type === 'multiselect-checkbox' ? (
                     <div className="space-y-2">
-                      <MultiSelectCheckbox
-                        value={formData[field.key] || ''}
-                        onChange={(val) => setFormData((prev) => ({ ...prev, [field.key]: val }))}
-                        options={asyncOptionsMap[field.key] || field.options || []}
-                        loading={asyncOptionsLoading[field.key] || false}
-                        placeholder={`Pilih ${field.label}...`}
-                        allowCreate={field.canCreateOption && apiConfigured}
-                        createLabel={field.createOptionLabel || field.label}
-                        onCreateOption={
-                          field.canCreateOption && apiConfigured
-                            ? (val) => handleAddOption(field, val)
-                            : undefined
-                        }
-                        onOpen={() => setTimeout(() => loadAsyncOptions(), 0)}
-                      />
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <MultiSelectCheckbox
+                            value={formData[field.key] || ''}
+                            onChange={(val) => setFormData((prev) => ({ ...prev, [field.key]: val }))}
+                            options={asyncOptionsMap[field.key] || field.options || []}
+                            loading={asyncOptionsLoading[field.key] || false}
+                            placeholder={`Pilih ${field.label}...`}
+                            allowCreate={field.canCreateOption && apiConfigured}
+                            createLabel={field.createOptionLabel || field.label}
+                            onCreateOption={
+                              field.canCreateOption && apiConfigured
+                                ? (val) => handleAddOption(field, val)
+                                : undefined
+                            }
+                            onOpen={() => setTimeout(() => refreshField(field.key, formData), 0)}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => refreshField(field.key, formData, true)}
+                          disabled={asyncOptionsLoading[field.key] || !field.asyncOptions}
+                          title={`Refresh ${field.label}`}
+                          className="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                        >
+                          {asyncOptionsLoading[field.key] ? (
+                            <div className="w-4 h-4 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
+                          ) : (
+                            <RefreshCw size={16} />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   ) : field.type === 'select' ? (
                     <div className="space-y-2">
-                      <SearchableSelect
-                        value={formData[field.key] || ''}
-                        onChange={(val) => {
-                          const nextForm = { ...formData, [field.key]: val };
-                          setFormData((prev) => ({ ...prev, [field.key]: val }));
-                          field.onValueChange?.(val, nextForm, setFormData);
-                          // If Cabang or Jenjang Studi changed, refresh async options after state applies
-                          const keyLower = String(field.key || '').toLowerCase();
-                          if (keyLower.includes('cabang') || keyLower.includes('jenjang') || keyLower.includes('asal')) {
-                            setTimeout(() => {
-                              loadAsyncOptions();
-                            }, 0);
-                          }
-                        }}
-                        options={asyncOptionsMap[field.key] || field.options || []}
-                        onOpen={() => setTimeout(() => loadAsyncOptions(), 0)}
-                        placeholder={`Pilih ${field.label}`}
-                        loading={asyncOptionsLoading[field.key] || false}
-                        disabled={!!isCabangFieldForNonAdmin || field.readOnly}
-                      />
+                      <div className="flex items-center gap-2">
+                        <SearchableSelect
+                          className="flex-1"
+                          value={formData[field.key] || ''}
+                          onChange={(val) => {
+                            const nextForm = { ...formData, [field.key]: val };
+                            setFormData((prev) => ({ ...prev, [field.key]: val }));
+                            field.onValueChange?.(val, nextForm, setFormData);
+                            const keyLower = String(field.key || '').toLowerCase();
+                            if (keyLower.includes('cabang') || keyLower.includes('jenjang') || keyLower.includes('asal')) {
+                              setTimeout(() => {
+                                try {
+                                  if (keyLower.includes('asal')) {
+                                    refreshField('Jenjang Studi', nextForm, true);
+                                  }
+                                  if (keyLower.includes('jenjang') || keyLower.includes('cabang')) {
+                                    refreshField('Kelompok Kelas', nextForm, true);
+                                  }
+                                } catch (err) {
+                                  // fallback to full load
+                                  loadAsyncOptions(nextForm);
+                                }
+                              }, 0);
+                            }
+                          }}
+                          options={asyncOptionsMap[field.key] || field.options || []}
+                          onOpen={() => setTimeout(() => refreshField(field.key, formData), 0)}
+                          onRefresh={() => refreshField(field.key, formData, true)}
+                          placeholder={`Pilih ${field.label}`}
+                          loading={asyncOptionsLoading[field.key] || false}
+                          disabled={!!isCabangFieldForNonAdmin || field.readOnly}
+                        />
+                      </div>
                       {field.required && (
                         <input
                           type="text"
