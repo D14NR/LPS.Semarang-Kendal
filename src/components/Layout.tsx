@@ -47,7 +47,7 @@ const menuItems = [
       { name: 'Nilai Evaluasi', path: '/nilai/evaluasi', icon: 'bookopen' },
     ],
   },
-  { name: 'Pelayanan/Jam Tambahan', path: '/pelayanan', icon: 'clock' },
+  { name: 'Pelayanan (jam tambahan di luar kelas)', path: '/pelayanan', icon: 'clock' },
   { name: 'Catatan Pembelajaran', path: '/catatan', icon: 'bookmarked' },
   { name: 'Nama Pengajar', path: '/pengajar', icon: 'usercheck' },
   { name: 'Print Rapor Siswa', path: '/rapor', icon: 'filetext' },

@@ -935,6 +935,14 @@ export default function PerkembanganBelajar() {
             Import
           </button>
           <button
+            onClick={() => window.open('https://docs.google.com/spreadsheets/d/1rwUhUgf60n1Wm6IVGcSlS0O4j1n2gELZugaxyO57vYE/edit?usp=sharing', '_blank')}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all"
+            title="Buka Blanko Perkembangan"
+          >
+            <FileDown size={16} />
+            Blanko Perkembangan
+          </button>
+          <button
             onClick={handleOpenInput}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-md ${
               apiConfigured ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200' : 'bg-gray-400 text-white cursor-not-allowed'

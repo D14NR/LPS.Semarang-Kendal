@@ -647,7 +647,7 @@ export default function PelayananJamTambahan() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Pelayanan / Jam Tambahan</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Pelayanan (jam tambahan di luar kelas)</h1>
           <p className="text-gray-500 text-sm mt-1">
             Input siswa yang mengikuti jam tambahan berdasarkan jenjang studi.
           </p>
@@ -684,7 +684,7 @@ export default function PelayananJamTambahan() {
             }`}
           >
             <Plus size={16} />
-            Input Pelayanan/Jam Tambahan
+            Input Pelayanan (jam tambahan di luar kelas)
           </button>
         </div>
       </div>
@@ -812,7 +812,7 @@ export default function PelayananJamTambahan() {
       <Modal
         isOpen={inputOpen}
         onClose={() => setInputOpen(false)}
-        title="Input Pelayanan / Jam Tambahan"
+        title="Input Pelayanan (jam tambahan di luar kelas)"
         size="xl"
         contentClassName="overflow-y-auto"
       >

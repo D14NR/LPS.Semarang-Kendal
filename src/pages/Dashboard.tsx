@@ -349,7 +349,7 @@ export default function Dashboard() {
               { icon: <Users size={16} />, label: 'Data Siswa', desc: 'Kelola data siswa (NIS, nama, sekolah, dll)', path: '/siswa' },
               { icon: <TrendingUp size={16} />, label: 'Perkembangan Belajar', desc: 'Catat progress belajar siswa', path: '/perkembangan' },
               { icon: <Award size={16} />, label: 'Nilai Siswa', desc: 'SNBT-UTBK, Tes Standar & Evaluasi', path: '/nilai/utbk' },
-              { icon: <Clock size={16} />, label: 'Pelayanan/Jam Tambahan', desc: 'Catat sesi bimbingan tambahan', path: '/pelayanan' },
+              { icon: <Clock size={16} />, label: 'Pelayanan (jam tambahan di luar kelas)', desc: 'Catat sesi bimbingan tambahan', path: '/pelayanan' },
               { icon: <UserCheck size={16} />, label: 'Nama Pengajar', desc: 'Data pengajar dan mata pelajaran', path: '/pengajar' },
               { icon: <FileText size={16} />, label: 'Print Rapor Siswa', desc: 'Rekap rapor siswa per periode', path: '/rapor' },
             ].map((item, i) => (

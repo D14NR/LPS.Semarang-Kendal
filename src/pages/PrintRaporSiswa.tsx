@@ -585,12 +585,12 @@ const SubjectAnalysisCard = ({
           </div>
         )}
 
-        {/* Pelayanan / Jam Tambahan */}
+        {/* Pelayanan (jam tambahan di luar kelas) */}
               {data.pelayananSessions > 0 && (
                 <div>
                   <p className="font-semibold text-gray-900 mb-1 flex items-center gap-1">
                     <Clock size={14} className="text-rose-600" />
-                    Pelayanan/Jam Tambahan:
+                    Pelayanan (jam tambahan di luar kelas):
                   </p>
                   <div className="ml-5 space-y-0.5 text-rose-700">
                     <p>• Total sesi: {data.pelayananSessions} kali</p>
@@ -2098,7 +2098,7 @@ export default function PrintRaporSiswa() {
           <section className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm print-reset-shadow">
             <div className="flex items-center gap-2 mb-6">
               <Clock size={20} className="text-rose-600" />
-              <h2 className="text-xl font-bold text-gray-800">Pelayanan / Jam Tambahan</h2>
+              <h2 className="text-xl font-bold text-gray-800">Pelayanan (jam tambahan di luar kelas)</h2>
             </div>
 
             {/* KPI Cards */}

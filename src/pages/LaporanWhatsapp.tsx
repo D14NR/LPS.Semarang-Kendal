@@ -527,7 +527,7 @@ export default function LaporanWhatsapp() {
       }
     }
 
-    const pelayananSummary = `\n⏱️ *Laporan Pelayanan/Jam Tambahan*\n• Total Sesi: ${pelayananFiltered.length}\n`;
+    const pelayananSummary = `\n⏱️ *Laporan Pelayanan (jam tambahan di luar kelas)*\n• Total Sesi: ${pelayananFiltered.length}\n`;
 
     const footer = `\nTerima kasih atas perhatian Bapak/Ibu. 🙏`;
     return `${header}${biodata}${presensiSummary}${ringkasanPerkembangan}${lastInfo}${nilaiSummary}${pelayananSummary}${footer}`;
