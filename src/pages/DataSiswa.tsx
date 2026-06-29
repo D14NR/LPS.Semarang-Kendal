@@ -1,6 +1,5 @@
 import CrudPage from '../components/CrudPage';
 import { fetchKelompokKelasOptionsByCabang, fetchSekolahOptions, fetchJenjangSekolahOptions, fetchJenjangsForSchool, JENJANG_STUDI_OPTIONS } from '../services/supabase';
-import { useAuth } from '../contexts/AuthContext';
 
 type AsyncContext = {
   formData: Record<string, string>;
@@ -91,18 +90,52 @@ const filters = [
   },
 ];
 
-export default function DataSiswa() {
-  const { user } = useAuth();
+const importExtraFields = [
+  {
+    key: 'Asal Sekolah',
+    label: 'Asal Sekolah',
+    type: 'select' as const,
+    asyncOptions: async (context: Record<string, string>) => {
+      const jenjang = String(context['Jenjang Studi'] || '').trim();
+      return fetchSekolahOptions(jenjang || undefined);
+    },
+    placeholder: 'Pilih Asal Sekolah',
+  },
+  {
+    key: 'Jenjang Studi',
+    label: 'Jenjang Studi',
+    type: 'select' as const,
+    asyncOptions: async (context: Record<string, string>) => {
+      const sekolah = String(context['Asal Sekolah'] || '').trim();
+      if (sekolah) return fetchJenjangsForSchool(sekolah);
+      return fetchJenjangSekolahOptions();
+    },
+    placeholder: 'Pilih Jenjang Studi',
+  },
+];
 
+export default function DataSiswa() {
   return (
-      <CrudPage
-        title="Data Siswa"
-        sheetKey="siswa"
-        fields={fields}
-        filters={filters}
-        cabangField="Cabang"
-        autoReplaceKeys={['Nis']}
-        showImport={user?.isAdmin ?? false}
-      />
+    <CrudPage
+      title="Data Siswa"
+      sheetKey="siswa"
+      fields={fields}
+      filters={filters}
+      cabangField="Cabang"
+      autoReplaceKeys={['Nis']}
+      showImport={true}
+      importExtraFields={importExtraFields}
+      importValidation={(formData) => {
+        const jenjang = String(formData['Jenjang Studi'] || '').trim();
+        const asalSekolah = String(formData['Asal Sekolah'] || '').trim();
+        if (!jenjang || !asalSekolah) {
+          return {
+            isValid: false,
+            message: 'Pilih Jenjang Studi dan Asal Sekolah terlebih dahulu sebelum mengimpor atau mengunduh template.',
+          };
+        }
+        return { isValid: true };
+      }}
+    />
   );
 }

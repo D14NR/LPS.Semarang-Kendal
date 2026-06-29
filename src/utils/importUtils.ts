@@ -181,12 +181,21 @@ export async function parseSpreadsheetFile(file: File, fields: ImportField[]): P
   }
 }
 
-export function generateTemplateWorkbook(fields: ImportField[], sheetName = 'Template'): Blob {
+export function generateTemplateWorkbook(fields: ImportField[], sheetName = 'Template', presetValues?: Record<string, string>): Blob {
   const headers = fields
     .filter((field) => field.key.toLowerCase() !== 'timestamp')
     .map((field) => field.key);
 
-  const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+  const rows: string[][] = [headers];
+  if (presetValues && Object.keys(presetValues).length > 0) {
+    const rowValues = headers.map((header) => {
+      const value = presetValues[header];
+      return value || '';
+    });
+    rows.push(rowValues);
+  }
+
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 

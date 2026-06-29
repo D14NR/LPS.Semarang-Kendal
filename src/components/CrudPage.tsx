@@ -55,6 +55,16 @@ interface FilterConfig {
   searchable?: boolean;
 }
 
+interface ImportFieldConfig {
+  key: string;
+  label: string;
+  type?: 'text' | 'select';
+  options?: string[];
+  asyncOptions?: (context: Record<string, string>) => Promise<string[]>;
+  placeholder?: string;
+  onValueChange?: (value: string, context: Record<string, string>, setContext: React.Dispatch<React.SetStateAction<Record<string, string>>>) => void;
+}
+
 interface CrudPageProps {
   title: string;
   sheetKey: SheetKey;
@@ -70,6 +80,8 @@ interface CrudPageProps {
   showAddButton?: boolean;
   showImport?: boolean;
   onAddClick?: () => void;
+  importValidation?: (formData: Record<string, string>) => { isValid: boolean; message?: string };
+  importExtraFields?: ImportFieldConfig[];
 }
 
 type ToastType = 'success' | 'error' | 'warning';
@@ -401,7 +413,7 @@ function MultiSelectCheckbox({
 
 // ===================== CrudPage Component =====================
 
-export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', cabangField = 'Cabang', filters = [], autoReplaceKeys = [], autoFillOnMatch = false, defaultSortKeys = [], addLabel, readOnly = false, showImport = true, onAddClick, showAddButton = true }: CrudPageProps) {
+export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', cabangField = 'Cabang', filters = [], autoReplaceKeys = [], autoFillOnMatch = false, defaultSortKeys = [], addLabel, readOnly = false, showImport = true, onAddClick, showAddButton = true, importValidation, importExtraFields = [] }: CrudPageProps) {
   const [data, setData] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -431,6 +443,9 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
   const [importRecords, setImportRecords] = useState<Record<string, string>[]>([]);
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState('');
+  const [importContextData, setImportContextData] = useState<Record<string, string>>({});
+  const [importFieldOptions, setImportFieldOptions] = useState<Record<string, string[]>>({});
+  const [importFieldLoading, setImportFieldLoading] = useState<Record<string, boolean>>({});
   const [filterState, setFilterState] = useState<Record<string, string>>({});
   const [filterOptionsMap, setFilterOptionsMap] = useState<Record<string, string[]>>({});
   const [filterOptionsLoading, setFilterOptionsLoading] = useState<Record<string, boolean>>({});
@@ -650,7 +665,37 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
 
   const handleRefresh = () => loadData(true);
 
-  const handleOpenImport = () => {
+  const loadImportFieldOptions = useCallback(async (context: Record<string, string>) => {
+    if (!importExtraFields.length) return;
+    const asyncFields = importExtraFields.filter((field) => field.asyncOptions);
+    if (!asyncFields.length) return;
+
+    const loadingState: Record<string, boolean> = {};
+    asyncFields.forEach((field) => {
+      loadingState[field.key] = true;
+    });
+    setImportFieldLoading((prev) => ({ ...prev, ...loadingState }));
+
+    try {
+      const results = await Promise.all(
+        asyncFields.map(async (field) => ({
+          key: field.key,
+          options: await field.asyncOptions!(context),
+        }))
+      );
+      const nextOptions: Record<string, string[]> = {};
+      results.forEach(({ key, options }) => {
+        nextOptions[key] = options || [];
+      });
+      setImportFieldOptions((prev) => ({ ...prev, ...nextOptions }));
+    } finally {
+      asyncFields.forEach((field) => {
+        setImportFieldLoading((prev) => ({ ...prev, [field.key]: false }));
+      });
+    }
+  }, [importExtraFields]);
+
+  const handleOpenImport = async () => {
     if (!apiConfigured) {
       showToast('warning', 'Database belum terhubung.');
       return;
@@ -658,7 +703,15 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     setImportError('');
     setImportRecords([]);
     setImportPreview([]);
+    setImportContextData({
+      'Jenjang Studi': formData['Jenjang Studi'] || '',
+      'Asal Sekolah': formData['Asal Sekolah'] || '',
+    });
     setImportOpen(true);
+    await loadImportFieldOptions({
+      'Jenjang Studi': formData['Jenjang Studi'] || '',
+      'Asal Sekolah': formData['Asal Sekolah'] || '',
+    });
   };
 
   const templateFields = useMemo(
@@ -666,8 +719,41 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     [fields, user, cabangField]
   );
 
+  const getComparisonKeys = () =>
+    autoReplaceKeys.length
+      ? autoReplaceKeys
+      : fields.map((field) => field.key).filter((key) => key.toLowerCase() !== 'timestamp');
+
+  const normalizeImportValue = (value: string, key: string) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return '';
+    if (key.toLowerCase().includes('tanggal') || key.toLowerCase().includes('timestamp')) {
+      const parsed = parseDateValue(trimmed);
+      return parsed ? parsed.toISOString().slice(0, 10) : trimmed.toLowerCase();
+    }
+    return trimmed.toLowerCase();
+  };
+
+  const normalizeRecordKey = (record: Record<string, string>) =>
+    getComparisonKeys()
+      .map((key) => normalizeImportValue(record[key], key))
+      .join('|');
+
   const handleTemplateDownload = () => {
-    const blob = generateTemplateWorkbook(templateFields, `Template_${title}`);
+    if (importValidation) {
+      const validation = importValidation(importContextData);
+      if (!validation.isValid) {
+        showToast('warning', validation.message || 'Lengkapi data wajib sebelum mengunduh template.');
+        return;
+      }
+    }
+    const presetValues = Object.fromEntries(
+      Object.entries(importContextData).filter(([key]) => {
+        const normalized = key.toLowerCase();
+        return normalized.includes('asal') || normalized.includes('jenjang');
+      })
+    );
+    const blob = generateTemplateWorkbook(templateFields, `Template_${title}`, presetValues);
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
@@ -687,7 +773,19 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
       setImportRecords([]);
       setImportHeaderMap([]);
     } else {
-      setImportPreview(result.preview);
+      const existingMap = new Map<string, Record<string, string>>();
+      data.forEach((row) => {
+        const key = normalizeRecordKey(row);
+        if (key) existingMap.set(key, row);
+      });
+      const previewWithStatus = result.preview.map((row) => {
+        const normalizedKey = normalizeRecordKey(row);
+        return {
+          ...row,
+          _status: normalizedKey && existingMap.has(normalizedKey) ? 'exists' : 'new',
+        };
+      });
+      setImportPreview(previewWithStatus);
       setImportRecords(result.records);
     }
     setImportLoading(false);
@@ -697,6 +795,13 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     if (!apiConfigured) {
       showToast('warning', 'Database belum terhubung.');
       return;
+    }
+    if (importValidation) {
+      const validation = importValidation(importContextData);
+      if (!validation.isValid) {
+        setImportError(validation.message || 'Lengkapi data wajib sebelum mengimpor.');
+        return;
+      }
     }
     if (importRecords.length === 0) {
       setImportError('Tidak ada data untuk diimport.');
@@ -794,6 +899,20 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
     }),
     [user, filterState, cabangField]
   );
+
+  const handleImportContextChange = useCallback((field: ImportFieldConfig, value: string) => {
+    setImportContextData((prev) => {
+      const next = { ...prev, [field.key]: value };
+      if (field.key === 'Asal Sekolah') {
+        next['Jenjang Studi'] = '';
+      }
+      if (typeof field.onValueChange === 'function') {
+        field.onValueChange(value, next, setImportContextData);
+      }
+      void loadImportFieldOptions(next);
+      return next;
+    });
+  }, [loadImportFieldOptions]);
   // Keep a ref to formData so buildAsyncContext identity doesn't change on typing
   const formDataRef = useRef<Record<string, string>>(formData);
   useEffect(() => { formDataRef.current = formData; }, [formData]);
@@ -1081,6 +1200,10 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
   });
   const apiConfigured = isAppsScriptConfigured();
   const isFiltered = user && !user.isAdmin && sheetKey !== 'pengajar';
+  const importContextValid = useMemo(() => {
+    if (!importValidation) return true;
+    return importValidation(importContextData).isValid;
+  }, [importContextData, importValidation]);
   const jenjangStudiValue = String(formData['Jenjang Studi'] || '').trim();
   const cabangValue = String(formData['Cabang'] || '').trim();
   const asalSekolahValue = String(formData['Asal Sekolah'] || '').trim();
@@ -1364,25 +1487,74 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
               <li>Pastikan header sesuai dengan kolom pada server database.</li>
               <li>Kolom Timestamp tidak perlu diisi.</li>
             </ul>
-            <div className="mt-3">
-              <button
-                type="button"
-                onClick={handleTemplateDownload}
-                className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-blue-200 rounded-lg text-xs font-semibold text-blue-700 hover:bg-blue-50"
-              >
-                <FileDown size={14} />
-                Download Template
-              </button>
-            </div>
           </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={(e) => handleImportFileChange(e.target.files?.[0] || null)}
-            className="w-full text-sm text-gray-600 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:bg-blue-600 file:text-white file:text-sm file:font-medium hover:file:bg-blue-700"
-          />
+          {importExtraFields.length > 0 && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+              <p className="text-sm font-semibold text-gray-700">Pilih konteks import</p>
+              {importExtraFields.map((field) => {
+                const options = importFieldOptions[field.key] || field.options || [];
+                const loading = importFieldLoading[field.key];
+                return (
+                  <div key={field.key}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{field.label}</label>
+                    {field.type === 'select' ? (
+                      <SearchableSelect
+                        value={importContextData[field.key] || ''}
+                        onChange={(val) => handleImportContextChange(field, val)}
+                        options={options}
+                        placeholder={field.placeholder || `Pilih ${field.label}`}
+                        disabled={field.key === 'Jenjang Studi' && !importContextData['Asal Sekolah']}
+                        loading={loading}
+                        onRefresh={() => loadImportFieldOptions(importContextData)}
+                        onOpen={() => {
+                          if (field.key === 'Jenjang Studi' && importContextData['Asal Sekolah']) {
+                            void loadImportFieldOptions(importContextData);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={importContextData[field.key] || ''}
+                        onChange={(e) => handleImportContextChange(field, e.target.value)}
+                        placeholder={field.placeholder || field.label}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 focus:border-blue-500 focus:outline-none"
+                      />
+                    )}
+                    {loading && <p className="mt-1 text-xs text-gray-400">Memuat opsi...</p>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
+            <p className="text-xs text-blue-700">Pilih konteks di atas sebelum mengimpor atau mengunduh template.</p>
+            <button
+              type="button"
+              onClick={handleTemplateDownload}
+              disabled={!importContextValid}
+              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-blue-200 rounded-lg text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FileDown size={14} />
+              Download Template
+            </button>
+          </div>
+
+          {!importContextValid ? (
+            <div className="w-full rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+              Pilih Asal Sekolah dan Jenjang Studi terlebih dahulu untuk mengaktifkan unggah file.
+            </div>
+          ) : (
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={(e) => handleImportFileChange(e.target.files?.[0] || null)}
+              className="w-full text-sm text-gray-600 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:bg-blue-600 file:text-white file:text-sm file:font-medium hover:file:bg-blue-700"
+            />
+          )}
 
           {importLoading && (
             <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -1400,33 +1572,44 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
 
           {importPreview.length > 0 && (
             <div className="space-y-2">
-              
               <p className="text-sm text-gray-600">Preview data (5 baris pertama):</p>
               <div className="overflow-x-auto border border-gray-200 rounded-xl">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50">
-                      {Object.keys(importPreview[0]).map((key) => (
-                        <th key={key} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">
-                          {key}
-                        </th>
-                      ))}
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                      {Object.keys(importPreview[0])
+                        .filter((key) => key !== '_status')
+                        .map((key) => (
+                          <th key={key} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">
+                            {key}
+                          </th>
+                        ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {importPreview.map((row, idx) => (
-                      <tr key={idx}>
-                        {Object.keys(importPreview[0]).map((key) => (
-                          <td key={key} className="px-3 py-2 text-gray-600">
-                            {row[key] || '-'}
-                          </td>
-                        ))}
+                      <tr key={idx} className={row._status === 'exists' ? 'bg-red-50' : 'bg-emerald-50'}>
+                        <td className="px-3 py-2">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${row._status === 'exists' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                            {row._status === 'exists' ? 'Sudah ada' : 'Baru'}
+                          </span>
+                        </td>
+                        {Object.keys(importPreview[0])
+                          .filter((key) => key !== '_status')
+                          .map((key) => (
+                            <td key={key} className="px-3 py-2 text-gray-600">
+                              {row[key] || '-'}
+                            </td>
+                          ))}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-gray-500">Total data terdeteksi: {importRecords.length}</p>
+              <p className="text-xs text-gray-500">
+                Total data terdeteksi: {importRecords.length}. Baru: {importPreview.filter((row) => row._status === 'new').length}. Sudah ada: {importPreview.filter((row) => row._status === 'exists').length}.
+              </p>
             </div>
           )}
 
@@ -1441,7 +1624,7 @@ export default function CrudPage({ title, sheetKey, fields, modalSize = 'md', ca
             <button
               type="button"
               onClick={handleImportSubmit}
-              disabled={importLoading || importRecords.length === 0}
+              disabled={importLoading || importRecords.length === 0 || !importContextValid}
               className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 shadow-md disabled:opacity-60"
             >
               Import Data
